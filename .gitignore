@@ -12,3 +12,8 @@ data/save.json
 # OS
 .DS_Store
 Thumbs.db
+
+# PyInstaller
+dist/
+build/
+
