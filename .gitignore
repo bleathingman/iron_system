@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environnement virtuel
+.venv/
+env/
+
+# Données utilisateur
+data/save.json
+
+# OS
+.DS_Store
+Thumbs.db
