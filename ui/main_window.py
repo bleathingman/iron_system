@@ -110,15 +110,16 @@ class MainWindow(QMainWindow):
         Ouvre l'écran 'Mes Achievements'
         """
         # Référence conservée pour éviter le garbage collection
-        self.achievements_window = AchievementsWindow(self.storage)
+        self.achievements_window = AchievementsWindow(self.storage, parent=self)
         self.achievements_window.show()
+
     
     def open_stats(self):
         """
         Ouvre l'écran Statistiques
         """
         # Référence conservée pour éviter le garbage collection
-        self.stats_window = StatsWindow(self.user, self.storage)
+        self.stats_window = StatsWindow(self.user, self.storage, parent=self)
         self.stats_window.show()
 
 

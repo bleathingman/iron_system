@@ -15,8 +15,8 @@ class StatsWindow(QWidget):
     Responsive (scroll si fenêtre réduite)
     """
 
-    def __init__(self, user: User, storage: Storage):
-        super().__init__()
+    def __init__(self, user, storage, parent=None):
+        super().__init__(parent)
 
         self.user = user
         self.storage = storage

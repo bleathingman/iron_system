@@ -13,8 +13,8 @@ class AchievementsWindow(QWidget):
     Affiche tous les succès, débloqués ou non
     """
 
-    def __init__(self, storage: Storage):
-        super().__init__()
+    def __init__(self, storage, parent=None):
+        super().__init__(parent)
 
         self.storage = storage
 
