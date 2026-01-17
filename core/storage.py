@@ -144,53 +144,6 @@ class Storage:
         self.conn.commit()
 
     # =========================
-    # STATS JOUR / SEMAINE
-    # =========================
-    def get_daily_stats(self):
-        """
-        Retourne les stats du jour
-        """
-        cursor = self.conn.cursor()
-
-        cursor.execute("""
-        SELECT
-            validations_today,
-            current_streak
-        FROM stats
-        WHERE id = 1
-        """)
-        row = cursor.fetchone()
-
-        return {
-            "validations": row["validations_today"],
-            "streak": row["current_streak"],
-        }
-
-    def get_weekly_stats(self):
-        """
-        Retourne les stats hebdomadaires (approximation v1)
-        Basé sur total_validations et streak
-        """
-        cursor = self.conn.cursor()
-
-        cursor.execute("""
-        SELECT
-            total_validations,
-            best_streak
-        FROM stats
-        WHERE id = 1
-        """)
-        row = cursor.fetchone()
-
-        # Heuristique simple v1 (sera raffinée plus tard)
-        weekly_validations = min(row["total_validations"], 7 * 3)
-
-        return {
-            "validations": weekly_validations,
-            "best_streak": row["best_streak"],
-        }
-
-    # =========================
     # OBJECTIVES
     # =========================
     def seed_objectives(self):
