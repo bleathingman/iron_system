@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QFrame,
-    QScrollArea, QSizePolicy
+    QScrollArea, QPushButton, QSizePolicy
 )
 from PySide6.QtCore import Qt
 
@@ -12,10 +12,10 @@ class StatsWindow(QWidget):
     """
     Écran Statistiques
     Global + Journalier + Hebdomadaire
-    Responsive (scroll si fenêtre réduite)
+    Responsive + scroll + fermeture explicite
     """
 
-    def __init__(self, user, storage, parent=None):
+    def __init__(self, user: User, storage: Storage, parent=None):
         super().__init__(parent)
 
         self.user = user
@@ -33,8 +33,22 @@ class StatsWindow(QWidget):
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(10)
 
-        # ===== Scroll Area =====
+        # ===== TITLE =====
+        title = QLabel("STATISTIQUES")
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("""
+        QLabel {
+            font-size: 22px;
+            font-weight: bold;
+            color: #7f5af0;
+            letter-spacing: 3px;
+        }
+        """)
+        main_layout.addWidget(title)
+
+        # ===== SCROLL AREA =====
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
@@ -47,24 +61,24 @@ class StatsWindow(QWidget):
         scroll.setWidget(content)
         main_layout.addWidget(scroll)
 
-        # ===== Title =====
-        title = QLabel("STATISTIQUES")
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("""
-        QLabel {
-            font-size: 22px;
+        # ===== CLOSE BUTTON =====
+        close_btn = QPushButton("FERMER")
+        close_btn.setFixedHeight(34)
+        close_btn.clicked.connect(self.close)
+        close_btn.setStyleSheet("""
+        QPushButton {
+            background-color: #1a1f36;
+            border: 1px solid #2d325a;
+            border-radius: 6px;
+            color: #ffffff;
             font-weight: bold;
-            color: #7f5af0;
-            letter-spacing: 3px;
+        }
+        QPushButton:hover {
+            background-color: #232863;
+            border-color: #7f5af0;
         }
         """)
-
-        title.setSizePolicy(
-            QSizePolicy.Expanding,
-            QSizePolicy.Fixed
-        )
-
-        self.content_layout.addWidget(title)
+        main_layout.addWidget(close_btn)
 
     # -------------------------
     # DATA
@@ -83,12 +97,12 @@ class StatsWindow(QWidget):
         self._add_stat_card("Objectifs validés", f"{stats.total_validations}")
         self._add_stat_card("Achievements", f"{achievements_unlocked}")
 
-        # ===== DAILY =====
+        # ===== TODAY =====
         self._add_section("AUJOURD'HUI")
         self._add_stat_card("Validations du jour", f"{daily['validations']}")
         self._add_stat_card("Streak actuel", f"{daily['streak']} jours")
 
-        # ===== WEEKLY =====
+        # ===== WEEK =====
         self._add_section("SEMAINE")
         self._add_stat_card("Validations (estim.)", f"{weekly['validations']}")
         self._add_stat_card("Meilleur streak", f"{weekly['best_streak']} jours")
@@ -158,3 +172,15 @@ class StatsWindow(QWidget):
         layout.addWidget(value_label)
 
         self.content_layout.addWidget(card)
+
+    # -------------------------
+    # UX
+    # -------------------------
+    def keyPressEvent(self, event):
+        """
+        Permet de fermer la fenêtre avec ESC
+        """
+        if event.key() == Qt.Key_Escape:
+            self.close()
+        else:
+            super().keyPressEvent(event)
