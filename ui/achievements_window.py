@@ -15,6 +15,7 @@ class AchievementsWindow(QWidget):
     - barre de progression globale
     - filtres (Tous / Débloqués / Non débloqués / Secrets)
     - tri automatique
+    - rareté (commun / rare / légendaire)
     - scroll
     """
 
@@ -25,7 +26,7 @@ class AchievementsWindow(QWidget):
         self.current_filter = "all"
 
         self.setWindowTitle("Achievements")
-        self.resize(440, 560)
+        self.resize(460, 580)
 
         self._setup_ui()
         self._load_achievements()
@@ -38,7 +39,6 @@ class AchievementsWindow(QWidget):
         main_layout.setAlignment(Qt.AlignTop)
         main_layout.setSpacing(10)
 
-        # Title
         title = QLabel("ACHIEVEMENTS")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
@@ -51,7 +51,6 @@ class AchievementsWindow(QWidget):
         """)
         main_layout.addWidget(title)
 
-        # Counter
         self.counter_label = QLabel("")
         self.counter_label.setAlignment(Qt.AlignCenter)
         self.counter_label.setStyleSheet("""
@@ -62,7 +61,6 @@ class AchievementsWindow(QWidget):
         """)
         main_layout.addWidget(self.counter_label)
 
-        # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setMaximum(100)
         self.progress_bar.setFormat("%p% complété")
@@ -142,26 +140,25 @@ class AchievementsWindow(QWidget):
     # DATA
     # -------------------------
     def _load_achievements(self):
-        # Clear UI
         while self.content_layout.count():
             item = self.content_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
         achievements = [
-            # publics
-            (1, "First Blood", "Premier objectif validé", False),
-            (2, "Getting Started", "5 objectifs validés", False),
-            (3, "Consistent", "Streak de 3 jours", False),
-            (4, "Grinder", "25 objectifs validés", False),
-            (5, "Level 5", "Atteindre le niveau 5", False),
-            (6, "Level 10", "Atteindre le niveau 10", False),
+            # id, title, desc, secret, rarity
+            (1, "First Blood", "Premier objectif validé", False, "common"),
+            (2, "Getting Started", "5 objectifs validés", False, "common"),
+            (3, "Consistent", "Streak de 3 jours", False, "rare"),
+            (4, "Grinder", "25 objectifs validés", False, "rare"),
+            (5, "Level 5", "Atteindre le niveau 5", False, "rare"),
+            (6, "Level 10", "Atteindre le niveau 10", False, "legendary"),
 
-            # secrets
-            (100, "???", "Succès secret", True),
-            (101, "???", "Succès secret", True),
-            (102, "???", "Succès secret", True),
-            (103, "???", "Succès secret", True),
+            # secrets (souvent légendaires)
+            (100, "Awakening", "Pouvoir caché éveillé", True, "legendary"),
+            (101, "Lone Wolf", "Avancer seul", True, "legendary"),
+            (102, "Iron Mind", "Mental d'acier", True, "legendary"),
+            (103, "No Mercy", "Aucune faiblesse", True, "legendary"),
         ]
 
         unlocked_cards = []
@@ -170,13 +167,13 @@ class AchievementsWindow(QWidget):
         unlocked_count = 0
         total = len(achievements)
 
-        for ach_id, title, desc, secret in achievements:
+        for ach_id, title, desc, secret, rarity in achievements:
             unlocked = self.storage.is_achievement_unlocked(ach_id)
 
             if unlocked:
                 unlocked_count += 1
 
-            # Filtering
+            # Filters
             if self.current_filter == "unlocked" and not unlocked:
                 continue
             if self.current_filter == "locked" and unlocked:
@@ -186,21 +183,15 @@ class AchievementsWindow(QWidget):
 
             # Secret masking
             if secret and not unlocked:
-                card = self._build_card("???", "Succès secret", False)
+                card = self._build_card("???", "Succès secret", False, rarity)
             else:
-                card = self._build_card(title, desc, unlocked)
+                card = self._build_card(title, desc, unlocked, rarity)
 
-            if unlocked:
-                unlocked_cards.append(card)
-            else:
-                locked_cards.append(card)
+            (unlocked_cards if unlocked else locked_cards).append(card)
 
-        # Counter + progress
         self.counter_label.setText(f"{unlocked_count} / {total} débloqués")
-        percent = int((unlocked_count / total) * 100)
-        self.progress_bar.setValue(percent)
+        self.progress_bar.setValue(int((unlocked_count / total) * 100))
 
-        # Order
         for card in unlocked_cards:
             self.content_layout.addWidget(card)
         for card in locked_cards:
@@ -224,12 +215,27 @@ class AchievementsWindow(QWidget):
     # -------------------------
     # CARD
     # -------------------------
-    def _build_card(self, title: str, description: str, unlocked: bool) -> QFrame:
+    def _build_card(
+        self,
+        title: str,
+        description: str,
+        unlocked: bool,
+        rarity: str
+    ) -> QFrame:
+
+        rarity_styles = {
+            "common": ("#9aa0b5", "🥉"),
+            "rare": ("#7f5af0", "🥈"),
+            "legendary": ("#f5c542", "🥇"),
+        }
+
+        color, icon = rarity_styles.get(rarity, ("#9aa0b5", "🥉"))
+
         card = QFrame()
         card.setStyleSheet(f"""
         QFrame {{
             background-color: {'#1a1f36' if unlocked else '#111426'};
-            border: 1px solid {'#7f5af0' if unlocked else '#2d325a'};
+            border: 2px solid {color};
             border-radius: 8px;
             padding: 12px;
         }}
@@ -238,13 +244,13 @@ class AchievementsWindow(QWidget):
         layout = QVBoxLayout(card)
 
         title_label = QLabel(
-            f"🏆 {title}" if unlocked else f"🔒 {title}"
+            f"{icon} {title}" if unlocked else f"🔒 {title}"
         )
         title_label.setStyleSheet("""
         QLabel {
             font-size: 15px;
             font-weight: bold;
-            color: #ffffff;
+            color: white;
         }
         """)
 
@@ -256,7 +262,17 @@ class AchievementsWindow(QWidget):
         }
         """)
 
+        rarity_label = QLabel(rarity.upper())
+        rarity_label.setStyleSheet(f"""
+        QLabel {{
+            font-size: 11px;
+            font-weight: bold;
+            color: {color};
+        }}
+        """)
+
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
+        layout.addWidget(rarity_label)
 
         return card
