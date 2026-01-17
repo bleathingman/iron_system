@@ -2,11 +2,13 @@
 __pycache__/
 *.pyc
 
-# Environnement virtuel
+# Environnements virtuels
 .venv/
 env/
+venv/
 
-# Données utilisateur
+# Données locales
+data/*.db
 data/save.json
 
 # OS
@@ -16,4 +18,3 @@ Thumbs.db
 # PyInstaller
 dist/
 build/
-
