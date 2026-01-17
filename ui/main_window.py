@@ -15,6 +15,7 @@ from core.user import User
 from core.storage import Storage
 from core.engine import Engine
 from ui.achievements_window import AchievementsWindow
+from ui.stats_window import StatsWindow
 
 
 class MainWindow(QMainWindow):
@@ -75,6 +76,10 @@ class MainWindow(QMainWindow):
         achievements_action = settings_menu.addAction("🏆 Mes Achievements")
         achievements_action.triggered.connect(self.open_achievements)
 
+        # --- Stats ---
+        stats_action = settings_menu.addAction("📊 Statistiques")
+        stats_action.triggered.connect(self.open_stats)
+
         settings_menu.addSeparator()
 
         # --- Toggle audio ---
@@ -107,6 +112,15 @@ class MainWindow(QMainWindow):
         # Référence conservée pour éviter le garbage collection
         self.achievements_window = AchievementsWindow(self.storage)
         self.achievements_window.show()
+    
+    def open_stats(self):
+        """
+        Ouvre l'écran Statistiques
+        """
+        # Référence conservée pour éviter le garbage collection
+        self.stats_window = StatsWindow(self.user, self.storage)
+        self.stats_window.show()
+
 
     def _toggle_mute(self):
         self._muted = not self._muted
@@ -299,7 +313,7 @@ class MainWindow(QMainWindow):
 
         self.refresh_dashboard()
 
-        # -------------------------
+    # -------------------------
     # ACHIEVEMENTS
     # -------------------------
     def _check_achievements(self):
