@@ -65,6 +65,10 @@ class MainWindow(QMainWindow):
         self._apply_dark_theme()
         self.refresh_dashboard()
 
+        # Popup achievement actif (anti-bug)
+        self._achievement_popup = None
+
+
     # -------------------------
     # MENU PARAMÈTRES
     # -------------------------
@@ -311,42 +315,78 @@ class MainWindow(QMainWindow):
     # ACHIEVEMENTS
     # -------------------------
     def _check_achievements(self):
+        """
+        Vérifie et débloque les achievements
+        """
         stats = self.user.stats
         level = stats.get_level()
 
         achievements = [
-            # --- publics ---
-            (1, "First Blood", "Premier objectif validé", stats.total_validations >= 1),
-            (2, "Getting Started", "5 objectifs validés", stats.total_validations >= 5),
-            (3, "Consistent", "Streak de 3 jours", stats.current_streak >= 3),
-            (4, "Grinder", "25 objectifs validés", stats.total_validations >= 25),
-            (5, "Level 5", "Atteindre le niveau 5", level >= 5),
-            (6, "Level 10", "Atteindre le niveau 10", level >= 10),
+            # -------------------------
+            # PUBLICS
+            # -------------------------
+            (1, "First Blood", "Premier objectif validé",
+             stats.total_validations >= 1),
 
-            # --- SECRETS ---
-            (100, "Lone Wolf", "3 objectifs validés le même jour",
-             stats.validations_today >= 3),
-            (101, "No Mercy", "5 validations d'affilée",
-             stats.combo_validations >= 5),
-            (102, "Awakening", "Atteindre exactement le niveau 7",
-             level == 7),
-            (103, "Iron Mind", "Streak de 7 jours",
-             stats.current_streak >= 7),
+            (2, "Getting Started", "5 objectifs validés",
+             stats.total_validations >= 5),
+
+            (3, "Consistent", "Streak de 3 jours",
+             stats.current_streak >= 3),
+
+            (4, "Early Bird", "Streak de 5 jours",
+             stats.current_streak >= 5),
+
+            (5, "Relentless", "Streak de 10 jours",
+             stats.current_streak >= 10),
+
+            (6, "Level 10", "Atteindre le niveau 10",
+             level >= 10),
+
+            # -------------------------
+            # ENDURANCE
+            # -------------------------
+            (20, "Keep Moving", "10 exercices d'endurance validés",
+             stats.endurance_validations >= 10
+             if hasattr(stats, "endurance_validations") else False),
+
+            # -------------------------
+            # MENTAL
+            # -------------------------
+            (30, "Focus", "5 exercices mentaux validés",
+             stats.mental_validations >= 5
+             if hasattr(stats, "mental_validations") else False),
+
+            # -------------------------
+            # SECRETS
+            # -------------------------
+            (100, "Comeback", "Revenir après une pause",
+             stats.current_streak == 1 and stats.total_validations > 10),
+
+            (101, "Unbreakable", "Streak de 14 jours",
+             stats.current_streak >= 14),
         ]
 
         for ach_id, title, desc, condition in achievements:
             if condition and not self.storage.is_achievement_unlocked(ach_id):
                 self.storage.unlock_achievement(ach_id)
-
-                # Popup standard
                 self._show_achievement_popup(title, desc)
 
-                # 🔥 Animation légendaire UNIQUEMENT pour secrets
+                # Animation légendaire pour secrets
                 if ach_id >= 100:
-                    self._show_legendary_screen("AWAKENING")
-
+                    self._show_legendary_screen(title)
 
     def _show_achievement_popup(self, title: str, description: str):
+        """
+        Affiche un popup d'achievement
+        Corrigé : auto-destruction + pas de doublon
+        """
+
+        # Supprimer l'ancien popup s'il existe
+        if self._achievement_popup is not None:
+            self._achievement_popup.deleteLater()
+            self._achievement_popup = None
+
         popup = QLabel(f"🏆 {title}\n{description}", self)
         popup.setAlignment(Qt.AlignCenter)
         popup.setStyleSheet("""
@@ -359,15 +399,22 @@ class MainWindow(QMainWindow):
             font-size: 14px;
         }
         """)
-        popup.setFixedSize(280, 80)
-        popup.move((self.width() - popup.width()) // 2, 40)
+        popup.setFixedSize(300, 90)
+        popup.move(
+            (self.width() - popup.width()) // 2,
+            50
+        )
         popup.show()
 
-        anim = QPropertyAnimation(popup, b"windowOpacity")
-        anim.setDuration(2000)
+        self._achievement_popup = popup
+
+        # Fade out garanti
+        anim = QPropertyAnimation(popup, b"windowOpacity", self)
+        anim.setDuration(2500)
         anim.setStartValue(1.0)
         anim.setEndValue(0.0)
         anim.finished.connect(popup.deleteLater)
+        anim.finished.connect(lambda: setattr(self, "_achievement_popup", None))
         anim.start()
 
         self._achievement_anim = anim
