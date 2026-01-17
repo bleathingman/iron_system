@@ -23,6 +23,7 @@ class MainWindow(QMainWindow):
     + animations
     + sons SYSTEM
     + paramètres audio persistants
+    + achievements
     """
 
     def __init__(self):
@@ -69,12 +70,12 @@ class MainWindow(QMainWindow):
         menu_bar = QMenuBar(self)
         settings_menu = menu_bar.addMenu("⚙ Paramètres")
 
-        # --- Toggle Audio ---
+        # Toggle audio ON/OFF
         self.audio_action = settings_menu.addAction("")
         self.audio_action.triggered.connect(self._toggle_mute)
         self._update_audio_action_text()
 
-        # --- Volume Slider ---
+        # Slider volume (inline)
         slider = QSlider(Qt.Horizontal)
         slider.setRange(0, 100)
         slider.setValue(int(self._volume * 100))
@@ -88,7 +89,6 @@ class MainWindow(QMainWindow):
 
         slider_action = QWidgetAction(self)
         slider_action.setDefaultWidget(slider_widget)
-
         settings_menu.addAction(slider_action)
 
         self.setMenuBar(menu_bar)
@@ -276,7 +276,56 @@ class MainWindow(QMainWindow):
             self.storage.save_stats(self.user.stats)
             self.sound_exp.play()
             self._animate_exp_gain()
+            self._check_achievements()
+
         self.refresh_dashboard()
+
+    # -------------------------
+    # ACHIEVEMENTS
+    # -------------------------
+    def _check_achievements(self):
+        stats = self.user.stats
+        level = stats.get_level()
+
+        achievements = [
+            (1, "First Blood", "Premier objectif validé", stats.total_validations >= 1),
+            (2, "Getting Started", "5 objectifs validés", stats.total_validations >= 5),
+            (3, "Consistent", "Streak de 3 jours", stats.current_streak >= 3),
+            (4, "Grinder", "25 objectifs validés", stats.total_validations >= 25),
+            (5, "Level 5", "Atteindre le niveau 5", level >= 5),
+            (6, "Level 10", "Atteindre le niveau 10", level >= 10),
+        ]
+
+        for ach_id, title, desc, condition in achievements:
+            if condition and not self.storage.is_achievement_unlocked(ach_id):
+                self.storage.unlock_achievement(ach_id)
+                self._show_achievement_popup(title, desc)
+
+    def _show_achievement_popup(self, title: str, description: str):
+        popup = QLabel(f"🏆 {title}\n{description}", self)
+        popup.setAlignment(Qt.AlignCenter)
+        popup.setStyleSheet("""
+        QLabel {
+            background-color: #1a1f36;
+            border: 2px solid #7f5af0;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 14px;
+        }
+        """)
+        popup.setFixedSize(280, 80)
+        popup.move((self.width() - popup.width()) // 2, 40)
+        popup.show()
+
+        anim = QPropertyAnimation(popup, b"windowOpacity")
+        anim.setDuration(2000)
+        anim.setStartValue(1.0)
+        anim.setEndValue(0.0)
+        anim.finished.connect(popup.deleteLater)
+        anim.start()
+
+        self._achievement_anim = anim
 
     # -------------------------
     # ANIMATIONS
