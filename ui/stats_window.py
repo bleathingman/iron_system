@@ -1,4 +1,7 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel,
+    QFrame, QScrollArea
+)
 from PySide6.QtCore import Qt
 
 from core.user import User
@@ -8,7 +11,7 @@ from core.storage import Storage
 class StatsWindow(QWidget):
     """
     Fenêtre Statistiques
-    Version desktop simple mais lisible
+    Version desktop lisible + scroll
     """
 
     def __init__(self, user: User, storage: Storage):
@@ -27,9 +30,9 @@ class StatsWindow(QWidget):
     # UI
     # -------------------------
     def _setup_ui(self):
-        self.layout = QVBoxLayout(self)
-        self.layout.setAlignment(Qt.AlignTop)
-        self.layout.setSpacing(14)
+        main_layout = QVBoxLayout(self)
+        main_layout.setAlignment(Qt.AlignTop)
+        main_layout.setSpacing(10)
 
         title = QLabel("STATISTIQUES")
         title.setAlignment(Qt.AlignCenter)
@@ -41,7 +44,20 @@ class StatsWindow(QWidget):
             letter-spacing: 3px;
         }
         """)
-        self.layout.addWidget(title)
+        main_layout.addWidget(title)
+
+        # Scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        content = QWidget()
+        self.content_layout = QVBoxLayout(content)
+        self.content_layout.setAlignment(Qt.AlignTop)
+        self.content_layout.setSpacing(14)
+
+        scroll.setWidget(content)
+        main_layout.addWidget(scroll)
 
     # -------------------------
     # DATA
@@ -54,6 +70,8 @@ class StatsWindow(QWidget):
         self._add_card("✅ Objectifs validés", stats.total_validations)
         self._add_card("🔥 Streak actuel", f"{stats.current_streak} jours")
         self._add_card("🏆 Meilleur streak", f"{stats.best_streak} jours")
+
+        self.content_layout.addStretch()
 
     # -------------------------
     # CARD
@@ -91,4 +109,4 @@ class StatsWindow(QWidget):
         layout.addWidget(title_label)
         layout.addWidget(value_label)
 
-        self.layout.addWidget(card)
+        self.content_layout.addWidget(card)

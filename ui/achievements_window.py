@@ -1,4 +1,7 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel,
+    QFrame, QScrollArea
+)
 from PySide6.QtCore import Qt
 
 from core.storage import Storage
@@ -7,7 +10,7 @@ from core.storage import Storage
 class AchievementsWindow(QWidget):
     """
     Fenêtre Achievements
-    Version desktop simple avec différenciation visuelle
+    Version desktop lisible + scroll
     """
 
     def __init__(self, storage: Storage):
@@ -25,9 +28,9 @@ class AchievementsWindow(QWidget):
     # UI
     # -------------------------
     def _setup_ui(self):
-        self.layout = QVBoxLayout(self)
-        self.layout.setAlignment(Qt.AlignTop)
-        self.layout.setSpacing(12)
+        main_layout = QVBoxLayout(self)
+        main_layout.setAlignment(Qt.AlignTop)
+        main_layout.setSpacing(10)
 
         title = QLabel("ACHIEVEMENTS")
         title.setAlignment(Qt.AlignCenter)
@@ -39,7 +42,20 @@ class AchievementsWindow(QWidget):
             letter-spacing: 3px;
         }
         """)
-        self.layout.addWidget(title)
+        main_layout.addWidget(title)
+
+        # Scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        content = QWidget()
+        self.content_layout = QVBoxLayout(content)
+        self.content_layout.setAlignment(Qt.AlignTop)
+        self.content_layout.setSpacing(12)
+
+        scroll.setWidget(content)
+        main_layout.addWidget(scroll)
 
     # -------------------------
     # DATA
@@ -64,9 +80,11 @@ class AchievementsWindow(QWidget):
             unlocked = self.storage.is_achievement_unlocked(ach_id)
 
             if secret and not unlocked:
-                self._add_card("🔒 ???", "Succès secret", False)
+                self._add_card("???", "Succès secret", False)
             else:
                 self._add_card(title, desc, unlocked)
+
+        self.content_layout.addStretch()
 
     # -------------------------
     # CARD
@@ -106,4 +124,4 @@ class AchievementsWindow(QWidget):
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
 
-        self.layout.addWidget(card)
+        self.content_layout.addWidget(card)
