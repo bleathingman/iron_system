@@ -1,9 +1,13 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QLabel,
     QPushButton, QHBoxLayout, QProgressBar,
-    QGraphicsDropShadowEffect, QMenuBar
+    QGraphicsDropShadowEffect, QMenuBar,
+    QWidgetAction, QSlider
 )
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QUrl
+from PySide6.QtCore import (
+    Qt, QPropertyAnimation, QEasingCurve,
+    QUrl, QSettings
+)
 from PySide6.QtGui import QColor
 from PySide6.QtMultimedia import QSoundEffect
 
@@ -18,6 +22,7 @@ class MainWindow(QMainWindow):
     Dark Solo Leveling theme
     + animations
     + sons SYSTEM
+    + paramètres audio persistants
     """
 
     def __init__(self):
@@ -27,10 +32,12 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(500, 560)
 
         # =========================
-        # AUDIO STATE (PARAMÈTRES)
+        # SETTINGS (persistants)
         # =========================
-        self._volume = 0.4
-        self._muted = False
+        self.settings = QSettings("IronSystem", "IronSystemApp")
+
+        self._volume = self.settings.value("audio/volume", 0.4, float)
+        self._muted = self.settings.value("audio/muted", False, bool)
 
         # =========================
         # CORE
@@ -62,17 +69,45 @@ class MainWindow(QMainWindow):
         menu_bar = QMenuBar(self)
         settings_menu = menu_bar.addMenu("⚙ Paramètres")
 
-        audio_action = settings_menu.addAction("Audio : ON")
-        audio_action.triggered.connect(
-            lambda: self._toggle_mute(audio_action)
-        )
+        # --- Toggle Audio ---
+        self.audio_action = settings_menu.addAction("")
+        self.audio_action.triggered.connect(self._toggle_mute)
+        self._update_audio_action_text()
+
+        # --- Volume Slider ---
+        slider = QSlider(Qt.Horizontal)
+        slider.setRange(0, 100)
+        slider.setValue(int(self._volume * 100))
+        slider.valueChanged.connect(self._on_volume_changed)
+
+        slider_widget = QWidget()
+        slider_layout = QHBoxLayout(slider_widget)
+        slider_layout.setContentsMargins(8, 4, 8, 4)
+        slider_layout.addWidget(QLabel("Volume"))
+        slider_layout.addWidget(slider)
+
+        slider_action = QWidgetAction(self)
+        slider_action.setDefaultWidget(slider_widget)
+
+        settings_menu.addAction(slider_action)
 
         self.setMenuBar(menu_bar)
 
-    def _toggle_mute(self, action):
+    def _toggle_mute(self):
         self._muted = not self._muted
+        self.settings.setValue("audio/muted", self._muted)
         self._apply_audio_settings()
-        action.setText("Audio : OFF" if self._muted else "Audio : ON")
+        self._update_audio_action_text()
+
+    def _update_audio_action_text(self):
+        self.audio_action.setText(
+            "Audio : OFF" if self._muted else "Audio : ON"
+        )
+
+    def _on_volume_changed(self, value: int):
+        self._volume = value / 100
+        self.settings.setValue("audio/volume", self._volume)
+        self._apply_audio_settings()
 
     # -------------------------
     # AUDIO
@@ -217,26 +252,20 @@ class MainWindow(QMainWindow):
 
         self._last_level = level
 
-        # Nettoyage UI
         while self.objectives_container.count():
             item = self.objectives_container.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        objectives = self.storage.load_objectives_for_level(level)
-
-        for obj in objectives:
+        for obj in self.storage.load_objectives_for_level(level):
             row = QWidget()
             row_layout = QHBoxLayout(row)
-
             label = QLabel(f"{obj.title}  +{obj.value} EXP")
             button = QPushButton("VALIDER")
             button.clicked.connect(lambda _, o=obj: self.validate_objective(o))
-
             row_layout.addWidget(label)
             row_layout.addStretch()
             row_layout.addWidget(button)
-
             self.objectives_container.addWidget(row)
 
     # -------------------------
@@ -247,7 +276,6 @@ class MainWindow(QMainWindow):
             self.storage.save_stats(self.user.stats)
             self.sound_exp.play()
             self._animate_exp_gain()
-
         self.refresh_dashboard()
 
     # -------------------------
