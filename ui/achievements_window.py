@@ -62,21 +62,29 @@ class AchievementsWindow(QWidget):
     # DATA
     # -------------------------
     def _load_achievements(self):
-        """
-        Charge tous les achievements connus
-        """
         achievements = [
-            (1, "First Blood", "Premier objectif validé"),
-            (2, "Getting Started", "5 objectifs validés"),
-            (3, "Consistent", "Streak de 3 jours"),
-            (4, "Grinder", "25 objectifs validés"),
-            (5, "Level 5", "Atteindre le niveau 5"),
-            (6, "Level 10", "Atteindre le niveau 10"),
+            (1, "First Blood", "Premier objectif validé", False),
+            (2, "Getting Started", "5 objectifs validés", False),
+            (3, "Consistent", "Streak de 3 jours", False),
+            (4, "Grinder", "25 objectifs validés", False),
+            (5, "Level 5", "Atteindre le niveau 5", False),
+            (6, "Level 10", "Atteindre le niveau 10", False),
+
+            # --- SECRETS ---
+            (100, "Lone Wolf", "3 objectifs validés le même jour", True),
+            (101, "No Mercy", "5 validations d'affilée", True),
+            (102, "Awakening", "Atteindre exactement le niveau 7", True),
+            (103, "Iron Mind", "Streak de 7 jours", True),
         ]
 
-        for ach_id, title, desc in achievements:
+        for ach_id, title, desc, secret in achievements:
             unlocked = self.storage.is_achievement_unlocked(ach_id)
-            self._add_achievement_card(title, desc, unlocked)
+
+            if secret and not unlocked:
+                self._add_achievement_card("???", "Succès secret", False)
+            else:
+                self._add_achievement_card(title, desc, unlocked)
+
 
     # -------------------------
     # UI ELEMENT

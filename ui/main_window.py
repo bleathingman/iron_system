@@ -199,54 +199,54 @@ class MainWindow(QMainWindow):
     # -------------------------
     def _apply_dark_theme(self):
         self.setStyleSheet("""
-        QWidget {
-            background-color: #0b0f1a;
-            color: #e6e6f0;
-            font-family: Segoe UI;
-            font-size: 14px;
-        }
-        QLabel#systemLabel {
-            color: #7f5af0;
-            font-size: 26px;
-            font-weight: bold;
-            letter-spacing: 4px;
-        }
-        QLabel#levelLabel {
-            font-size: 22px;
-            font-weight: bold;
-            color: #ffffff;
-        }
-        QLabel#expLabel {
-            font-size: 14px;
-            color: #b8b8d1;
-        }
-        QProgressBar#expBar {
-            background-color: #14182b;
-            border: 1px solid #2d325a;
-            border-radius: 6px;
-            height: 18px;
-            text-align: center;
-            color: #ffffff;
-        }
-        QProgressBar#expBar::chunk {
-            background-color: #7f5af0;
-            border-radius: 6px;
-        }
-        QPushButton {
-            background-color: #1a1f36;
-            border: 1px solid #2d325a;
-            border-radius: 6px;
-            padding: 6px 14px;
-            color: #ffffff;
-        }
-        QPushButton:hover {
-            background-color: #232863;
-            border-color: #7f5af0;
-        }
-        QPushButton:pressed {
-            background-color: #7f5af0;
-        }
-        """)
+            QWidget {
+                background-color: #0b0f1a;
+                color: #e6e6f0;
+                font-family: Segoe UI;
+                font-size: 14px;
+            }
+            QLabel#systemLabel {
+                color: #7f5af0;
+                font-size: 26px;
+                font-weight: bold;
+                letter-spacing: 4px;
+            }
+            QLabel#levelLabel {
+                font-size: 22px;
+                font-weight: bold;
+                color: #ffffff;
+            }
+            QLabel#expLabel {
+                font-size: 14px;
+                color: #b8b8d1;
+            }
+            QProgressBar#expBar {
+                background-color: #14182b;
+                border: 1px solid #2d325a;
+                border-radius: 6px;
+                height: 18px;
+                text-align: center;
+                color: #ffffff;
+            }
+            QProgressBar#expBar::chunk {
+                background-color: #7f5af0;
+                border-radius: 6px;
+            }
+            QPushButton {
+                background-color: #1a1f36;
+                border: 1px solid #2d325a;
+                border-radius: 6px;
+                padding: 6px 14px;
+                color: #ffffff;
+            }
+            QPushButton:hover {
+                background-color: #232863;
+                border-color: #7f5af0;
+            }
+            QPushButton:pressed {
+                background-color: #7f5af0;
+            }
+            """)
 
     # -------------------------
     # DASHBOARD
@@ -303,12 +303,26 @@ class MainWindow(QMainWindow):
         level = stats.get_level()
 
         achievements = [
+            # --- publics ---
             (1, "First Blood", "Premier objectif validé", stats.total_validations >= 1),
             (2, "Getting Started", "5 objectifs validés", stats.total_validations >= 5),
             (3, "Consistent", "Streak de 3 jours", stats.current_streak >= 3),
             (4, "Grinder", "25 objectifs validés", stats.total_validations >= 25),
             (5, "Level 5", "Atteindre le niveau 5", level >= 5),
             (6, "Level 10", "Atteindre le niveau 10", level >= 10),
+
+            # --- SECRETS ---
+            (100, "Lone Wolf", "3 objectifs validés le même jour",
+                stats.validations_today >= 3),
+
+            (101, "No Mercy", "5 validations d'affilée",
+                stats.combo_validations >= 5),
+
+            (102, "Awakening", "Atteindre exactement le niveau 7",
+                level == 7),
+
+            (103, "Iron Mind", "Streak de 7 jours",
+                stats.current_streak >= 7),
         ]
 
         for ach_id, title, desc, condition in achievements:

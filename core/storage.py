@@ -1,80 +1,63 @@
 import sqlite3
-from datetime import datetime
-from core.stats import Stats
-from core.objective import Objective, Frequency
+from pathlib import Path
 
 
 class Storage:
     """
-    Gestionnaire de persistance SQLite.
-    Toute interaction avec la base passe par cette classe.
+    Gestion du stockage local (SQLite)
     """
 
-    def __init__(self, db_path="data/ironsystem.db"):
+    def __init__(self, db_path: str = "data/ironsystem.db"):
+        Path("data").mkdir(exist_ok=True)
+
         self.conn = sqlite3.connect(db_path)
+        self.conn.row_factory = sqlite3.Row
+
         self._create_tables()
 
+    # =========================
+    # TABLE CREATION
+    # =========================
     def _create_tables(self):
-        """
-        Crée les tables nécessaires et gère les migrations simples
-        (ex: ajout de colonnes manquantes).
-        """
         cursor = self.conn.cursor()
 
-        # =========================
-        # TABLE OBJECTIVES
-        # =========================
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS objectives (
-            id INTEGER PRIMARY KEY,
-            title TEXT,
-            frequency TEXT,
-            value INTEGER
-        )
-        """)
-
-        # Migration : ajout de la colonne min_level si absente
-        cursor.execute("PRAGMA table_info(objectives)")
-        columns = [row[1] for row in cursor.fetchall()]
-        if "min_level" not in columns:
-            cursor.execute(
-                "ALTER TABLE objectives ADD COLUMN min_level INTEGER DEFAULT 1"
-            )
-
-        # =========================
-        # TABLE HISTORY
-        # =========================
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY,
-            timestamp TEXT,
-            action TEXT,
-            impact INTEGER
-        )
-        """)
-
-        # =========================
-        # TABLE STATS
-        # =========================
+        # -------------------------
+        # STATS TABLE
+        # -------------------------
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS stats (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            current_streak INTEGER,
-            best_streak INTEGER,
-            total_validations INTEGER,
-            total_points INTEGER
+            id INTEGER PRIMARY KEY,
+            total_exp INTEGER DEFAULT 0,
+            total_validations INTEGER DEFAULT 0,
+
+            current_streak INTEGER DEFAULT 0,
+            best_streak INTEGER DEFAULT 0,
+
+            last_validation_date TEXT,
+
+            validations_today INTEGER DEFAULT 0,
+            combo_validations INTEGER DEFAULT 0
         )
         """)
 
-        # Initialisation des stats si absentes
+        # Initialisation stats (1 utilisateur)
         cursor.execute("""
-        INSERT OR IGNORE INTO stats
-        VALUES (1, 0, 0, 0, 0)
+        INSERT OR IGNORE INTO stats (
+            id,
+            total_exp,
+            total_validations,
+            current_streak,
+            best_streak,
+            last_validation_date,
+            validations_today,
+            combo_validations
+        )
+        VALUES (1, 0, 0, 0, 0, NULL, 0, 0)
         """)
-        
-        # =========================
-        # TABLE ACHIEVEMENTS
-        # =========================
+
+        # -------------------------
+        # ACHIEVEMENTS TABLE
+        # -------------------------
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS achievements (
             id INTEGER PRIMARY KEY,
@@ -82,149 +65,149 @@ class Storage:
         )
         """)
 
+        # -------------------------
+        # OBJECTIVES TABLE
+        # -------------------------
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS objectives (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            frequency TEXT NOT NULL,
+            value INTEGER NOT NULL,
+            min_level INTEGER DEFAULT 1
+        )
+        """)
 
         self.conn.commit()
 
     # =========================
     # STATS
     # =========================
-    def load_stats(self) -> Stats:
+    def load_stats(self):
         """
-        Charge les statistiques globales depuis la base.
+        Charge les statistiques utilisateur
         """
+        from core.stats import Stats
+
         cursor = self.conn.cursor()
         cursor.execute("""
-        SELECT current_streak, best_streak, total_validations, total_points
-        FROM stats WHERE id = 1
+        SELECT
+            total_exp,
+            total_validations,
+            current_streak,
+            best_streak,
+            last_validation_date,
+            validations_today,
+            combo_validations
+        FROM stats
+        WHERE id = 1
         """)
         row = cursor.fetchone()
 
-        return Stats(
-            current_streak=row[0],
-            best_streak=row[1],
-            total_validations=row[2],
-            total_points=row[3],
-        )
+        if row:
+            return Stats(
+                total_exp=row["total_exp"],
+                total_validations=row["total_validations"],
+                current_streak=row["current_streak"],
+                best_streak=row["best_streak"],
+                last_validation_date=row["last_validation_date"],
+                validations_today=row["validations_today"],
+                combo_validations=row["combo_validations"],
+            )
 
-    def save_stats(self, stats: Stats):
+        return Stats()
+
+    def save_stats(self, stats):
         """
-        Sauvegarde les statistiques globales.
+        Sauvegarde les statistiques utilisateur
         """
         cursor = self.conn.cursor()
         cursor.execute("""
-        UPDATE stats
-        SET current_streak = ?,
-            best_streak = ?,
+        UPDATE stats SET
+            total_exp = ?,
             total_validations = ?,
-            total_points = ?
+            current_streak = ?,
+            best_streak = ?,
+            last_validation_date = ?,
+            validations_today = ?,
+            combo_validations = ?
         WHERE id = 1
         """, (
+            stats.total_exp,
+            stats.total_validations,
             stats.current_streak,
             stats.best_streak,
-            stats.total_validations,
-            stats.total_points,
+            stats.last_validation_date,
+            stats.validations_today,
+            stats.combo_validations,
         ))
         self.conn.commit()
 
     # =========================
-    # HISTORY / EXP
-    # =========================
-    def save_history(self, entry):
-        """
-        Enregistre une validation d'objectif dans l'historique.
-        """
-        cursor = self.conn.cursor()
-        cursor.execute(
-            "INSERT INTO history (timestamp, action, impact) VALUES (?, ?, ?)",
-            (entry.timestamp.isoformat(), entry.action, entry.impact)
-        )
-        self.conn.commit()
-
-    def get_last_validation_date(self):
-        """
-        Retourne la date de la dernière validation (pour le streak).
-        """
-        cursor = self.conn.cursor()
-        cursor.execute("""
-        SELECT timestamp
-        FROM history
-        ORDER BY timestamp DESC
-        LIMIT 1
-        """)
-        row = cursor.fetchone()
-
-        if not row:
-            return None
-
-        return datetime.fromisoformat(row[0]).date()
-
-    def get_today_exp(self) -> int:
-        """
-        Calcule l'EXP gagnée aujourd'hui depuis l'historique.
-        """
-        cursor = self.conn.cursor()
-        cursor.execute("""
-        SELECT SUM(impact)
-        FROM history
-        WHERE DATE(timestamp) = DATE('now')
-        """)
-        row = cursor.fetchone()
-
-        return row[0] if row and row[0] else 0
-
-    # =========================
     # OBJECTIVES
     # =========================
+    def seed_objectives(self):
+        """
+        Injecte des objectifs de base (si DB vide)
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM objectives")
+        count = cursor.fetchone()[0]
+
+        if count > 0:
+            return
+
+        objectives = [
+            # Niveau 1–3 (débutants)
+            ("5 pompes", "daily", 10, 1),
+            ("10 squats", "daily", 10, 1),
+            ("5 min de marche", "daily", 10, 1),
+
+            # Niveau 4–6
+            ("10 pompes", "daily", 15, 4),
+            ("20 squats", "daily", 15, 4),
+            ("5 min gainage", "daily", 15, 4),
+
+            # Niveau 7–10
+            ("20 pompes", "daily", 20, 7),
+            ("30 squats", "daily", 20, 7),
+            ("10 min course", "daily", 20, 7),
+        ]
+
+        cursor.executemany("""
+        INSERT INTO objectives (title, frequency, value, min_level)
+        VALUES (?, ?, ?, ?)
+        """, objectives)
+
+        self.conn.commit()
+
     def load_objectives_for_level(self, level: int):
         """
-        Charge les objectifs accessibles pour un niveau donné.
+        Charge les objectifs disponibles pour un niveau donné
         """
+        from core.objective import Objective, Frequency
+
         cursor = self.conn.cursor()
         cursor.execute("""
         SELECT id, title, frequency, value
         FROM objectives
         WHERE min_level <= ?
         """, (level,))
+
         rows = cursor.fetchall()
+        objectives = []
 
-        return [
-            Objective(
-                id=r[0],
-                title=r[1],
-                frequency=Frequency(r[2]),
-                value=r[3],
+        for row in rows:
+            objectives.append(
+                Objective(
+                    id=row["id"],
+                    title=row["title"],
+                    frequency=Frequency(row["frequency"]),
+                    value=row["value"]
+                )
             )
-            for r in rows
-        ]
 
-    def seed_objectives(self):
-        """
-        Injecte les objectifs de base (une seule fois).
-        """
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM objectives")
-        if cursor.fetchone()[0] > 0:
-            return
-
-        cursor.executemany("""
-        INSERT INTO objectives (id, title, frequency, value, min_level)
-        VALUES (?, ?, ?, ?, ?)
-        """, [
-            # Niveau 1 – Awakening
-            (1, "5 Pompes", "daily", 10, 1),
-            (2, "10 Abdos", "daily", 10, 1),
-            (3, "10 Squats", "daily", 10, 1),
-            (4, "Gainage 30 sec", "daily", 10, 1),
-            (5, "Marche 10 min", "daily", 10, 1),
-
-            # Progression
-            (6, "15 Pompes", "daily", 15, 5),
-            (7, "20 Squats", "daily", 15, 5),
-            (8, "30 Pompes", "daily", 20, 10),
-            (9, "Course 2 km", "daily", 25, 10),
-        ])
-
-        self.conn.commit()
+        return objectives
 
     # =========================
     # ACHIEVEMENTS
@@ -236,7 +219,7 @@ class Storage:
             (achievement_id,)
         )
         row = cursor.fetchone()
-        return bool(row and row[0])
+        return bool(row and row["unlocked"])
 
     def unlock_achievement(self, achievement_id: int):
         cursor = self.conn.cursor()
