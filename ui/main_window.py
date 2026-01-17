@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QLabel,
     QPushButton, QHBoxLayout, QProgressBar,
-    QGraphicsDropShadowEffect
+    QGraphicsDropShadowEffect, QMenuBar
 )
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QUrl
 from PySide6.QtGui import QColor
@@ -27,6 +27,12 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(500, 560)
 
         # =========================
+        # AUDIO STATE (PARAMÈTRES)
+        # =========================
+        self._volume = 0.4
+        self._muted = False
+
+        # =========================
         # CORE
         # =========================
         self.storage = Storage()
@@ -44,9 +50,29 @@ class MainWindow(QMainWindow):
         # =========================
         # UI
         # =========================
+        self._setup_menu()
         self._setup_ui()
         self._apply_dark_theme()
         self.refresh_dashboard()
+
+    # -------------------------
+    # MENU PARAMÈTRES
+    # -------------------------
+    def _setup_menu(self):
+        menu_bar = QMenuBar(self)
+        settings_menu = menu_bar.addMenu("⚙ Paramètres")
+
+        audio_action = settings_menu.addAction("Audio : ON")
+        audio_action.triggered.connect(
+            lambda: self._toggle_mute(audio_action)
+        )
+
+        self.setMenuBar(menu_bar)
+
+    def _toggle_mute(self, action):
+        self._muted = not self._muted
+        self._apply_audio_settings()
+        action.setText("Audio : OFF" if self._muted else "Audio : ON")
 
     # -------------------------
     # AUDIO
@@ -57,11 +83,16 @@ class MainWindow(QMainWindow):
         """
         self.sound_exp = QSoundEffect()
         self.sound_exp.setSource(QUrl.fromLocalFile("assets/sounds/exp.wav"))
-        self.sound_exp.setVolume(0.4)
 
         self.sound_level_up = QSoundEffect()
         self.sound_level_up.setSource(QUrl.fromLocalFile("assets/sounds/level_up.wav"))
-        self.sound_level_up.setVolume(0.6)
+
+        self._apply_audio_settings()
+
+    def _apply_audio_settings(self):
+        volume = 0 if self._muted else self._volume
+        self.sound_exp.setVolume(volume)
+        self.sound_level_up.setVolume(volume)
 
     # -------------------------
     # UI SETUP
