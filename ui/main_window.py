@@ -264,6 +264,10 @@ class MainWindow(QMainWindow):
         if prev_level is not None and level > prev_level:
             self._animate_level_up()
             self.sound_level_up.play()
+            
+            # Milestones légendaires
+            if level in (10, 25, 50, 100):
+                self._show_legendary_screen(f"LEVEL {level}")
 
         self._last_level = level
 
@@ -295,7 +299,7 @@ class MainWindow(QMainWindow):
 
         self.refresh_dashboard()
 
-    # -------------------------
+        # -------------------------
     # ACHIEVEMENTS
     # -------------------------
     def _check_achievements(self):
@@ -313,22 +317,26 @@ class MainWindow(QMainWindow):
 
             # --- SECRETS ---
             (100, "Lone Wolf", "3 objectifs validés le même jour",
-                stats.validations_today >= 3),
-
+             stats.validations_today >= 3),
             (101, "No Mercy", "5 validations d'affilée",
-                stats.combo_validations >= 5),
-
+             stats.combo_validations >= 5),
             (102, "Awakening", "Atteindre exactement le niveau 7",
-                level == 7),
-
+             level == 7),
             (103, "Iron Mind", "Streak de 7 jours",
-                stats.current_streak >= 7),
+             stats.current_streak >= 7),
         ]
 
         for ach_id, title, desc, condition in achievements:
             if condition and not self.storage.is_achievement_unlocked(ach_id):
                 self.storage.unlock_achievement(ach_id)
+
+                # Popup standard
                 self._show_achievement_popup(title, desc)
+
+                # 🔥 Animation légendaire UNIQUEMENT pour secrets
+                if ach_id >= 100:
+                    self._show_legendary_screen("AWAKENING")
+
 
     def _show_achievement_popup(self, title: str, description: str):
         popup = QLabel(f"🏆 {title}\n{description}", self)
@@ -396,3 +404,81 @@ class MainWindow(QMainWindow):
 
         self._lvl_anim = anim
         self._lvl_anim_back = anim_back
+
+    # -------------------------
+    # LEGENDARY ANIMATION
+    # -------------------------
+    def _show_legendary_screen(self, title: str):
+        """
+        Affiche une animation plein écran pour événements légendaires
+        """
+        overlay = QWidget(self)
+        overlay.setAttribute(Qt.WA_DeleteOnClose)
+        overlay.setGeometry(self.rect())
+        overlay.setStyleSheet("""
+        QWidget {
+            background-color: rgba(11, 15, 26, 0.96);
+        }
+        """)
+
+        layout = QVBoxLayout(overlay)
+        layout.setAlignment(Qt.AlignCenter)
+
+        label = QLabel(title)
+        label.setAlignment(Qt.AlignCenter)
+        label.setStyleSheet("""
+        QLabel {
+            color: #7f5af0;
+            font-size: 42px;
+            font-weight: bold;
+            letter-spacing: 6px;
+        }
+        """)
+
+        glow = QGraphicsDropShadowEffect(self)
+        glow.setColor(QColor("#7f5af0"))
+        glow.setBlurRadius(0)
+        glow.setOffset(0)
+        label.setGraphicsEffect(glow)
+
+        layout.addWidget(label)
+        overlay.show()
+
+        # Glow animation
+        anim = QPropertyAnimation(glow, b"blurRadius")
+        anim.setDuration(900)
+        anim.setStartValue(0)
+        anim.setEndValue(60)
+        anim.setEasingCurve(QEasingCurve.OutBack)
+
+        anim_back = QPropertyAnimation(glow, b"blurRadius")
+        anim_back.setDuration(1200)
+        anim_back.setStartValue(60)
+        anim_back.setEndValue(0)
+        anim_back.setEasingCurve(QEasingCurve.InOutCubic)
+
+        # Fade out
+        fade = QPropertyAnimation(overlay, b"windowOpacity")
+        fade.setDuration(1600)
+        fade.setStartValue(1.0)
+        fade.setEndValue(0.0)
+        fade.finished.connect(overlay.close)
+
+        anim.start()
+        anim_back.start()
+        fade.start()
+
+        self._legendary_anim = anim
+        self._legendary_anim_back = anim_back
+        self._legendary_fade = fade
+
+        # Son légendaire (si présent)
+        try:
+            from PySide6.QtMultimedia import QSoundEffect
+            sfx = QSoundEffect(self)
+            sfx.setSource(QUrl.fromLocalFile("assets/sounds/legendary.wav"))
+            sfx.setVolume(0 if self._muted else self._volume)
+            sfx.play()
+            self._legendary_sfx = sfx
+        except Exception:
+            pass
