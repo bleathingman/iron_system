@@ -16,6 +16,7 @@ class AchievementsWindow(QWidget):
     - filtres (Tous / Débloqués / Non débloqués / Secrets)
     - tri automatique
     - rareté (commun / rare / légendaire)
+    - catégories (discipline / endurance / mental)
     - scroll
     """
 
@@ -146,19 +147,19 @@ class AchievementsWindow(QWidget):
                 item.widget().deleteLater()
 
         achievements = [
-            # id, title, desc, secret, rarity
-            (1, "First Blood", "Premier objectif validé", False, "common"),
-            (2, "Getting Started", "5 objectifs validés", False, "common"),
-            (3, "Consistent", "Streak de 3 jours", False, "rare"),
-            (4, "Grinder", "25 objectifs validés", False, "rare"),
-            (5, "Level 5", "Atteindre le niveau 5", False, "rare"),
-            (6, "Level 10", "Atteindre le niveau 10", False, "legendary"),
+            # id, title, desc, secret, rarity, category
+            (1, "First Blood", "Premier objectif validé", False, "common", "discipline"),
+            (2, "Getting Started", "5 objectifs validés", False, "common", "discipline"),
+            (3, "Consistent", "Streak de 3 jours", False, "rare", "discipline"),
+            (4, "Grinder", "25 objectifs validés", False, "rare", "endurance"),
+            (5, "Level 5", "Atteindre le niveau 5", False, "rare", "mental"),
+            (6, "Level 10", "Atteindre le niveau 10", False, "legendary", "mental"),
 
-            # secrets (souvent légendaires)
-            (100, "Awakening", "Pouvoir caché éveillé", True, "legendary"),
-            (101, "Lone Wolf", "Avancer seul", True, "legendary"),
-            (102, "Iron Mind", "Mental d'acier", True, "legendary"),
-            (103, "No Mercy", "Aucune faiblesse", True, "legendary"),
+            # secrets
+            (100, "Awakening", "Pouvoir caché éveillé", True, "legendary", "mental"),
+            (101, "Lone Wolf", "Avancer seul", True, "legendary", "discipline"),
+            (102, "Iron Mind", "Mental d'acier", True, "legendary", "mental"),
+            (103, "No Mercy", "Aucune faiblesse", True, "legendary", "endurance"),
         ]
 
         unlocked_cards = []
@@ -167,13 +168,12 @@ class AchievementsWindow(QWidget):
         unlocked_count = 0
         total = len(achievements)
 
-        for ach_id, title, desc, secret, rarity in achievements:
+        for ach_id, title, desc, secret, rarity, category in achievements:
             unlocked = self.storage.is_achievement_unlocked(ach_id)
 
             if unlocked:
                 unlocked_count += 1
 
-            # Filters
             if self.current_filter == "unlocked" and not unlocked:
                 continue
             if self.current_filter == "locked" and unlocked:
@@ -181,11 +181,10 @@ class AchievementsWindow(QWidget):
             if self.current_filter == "secrets" and not secret:
                 continue
 
-            # Secret masking
             if secret and not unlocked:
-                card = self._build_card("???", "Succès secret", False, rarity)
+                card = self._build_card("???", "Succès secret", False, rarity, category)
             else:
-                card = self._build_card(title, desc, unlocked, rarity)
+                card = self._build_card(title, desc, unlocked, rarity, category)
 
             (unlocked_cards if unlocked else locked_cards).append(card)
 
@@ -215,27 +214,27 @@ class AchievementsWindow(QWidget):
     # -------------------------
     # CARD
     # -------------------------
-    def _build_card(
-        self,
-        title: str,
-        description: str,
-        unlocked: bool,
-        rarity: str
-    ) -> QFrame:
-
+    def _build_card(self, title, description, unlocked, rarity, category) -> QFrame:
         rarity_styles = {
             "common": ("#9aa0b5", "🥉"),
             "rare": ("#7f5af0", "🥈"),
             "legendary": ("#f5c542", "🥇"),
         }
 
-        color, icon = rarity_styles.get(rarity, ("#9aa0b5", "🥉"))
+        category_styles = {
+            "discipline": ("🥋", "#4ea8de"),
+            "endurance": ("🫀", "#e63946"),
+            "mental": ("🧠", "#9d4edd"),
+        }
+
+        r_color, r_icon = rarity_styles.get(rarity, ("#9aa0b5", "🥉"))
+        c_icon, c_color = category_styles.get(category, ("❓", "#999"))
 
         card = QFrame()
         card.setStyleSheet(f"""
         QFrame {{
             background-color: {'#1a1f36' if unlocked else '#111426'};
-            border: 2px solid {color};
+            border: 2px solid {r_color};
             border-radius: 8px;
             padding: 12px;
         }}
@@ -244,35 +243,24 @@ class AchievementsWindow(QWidget):
         layout = QVBoxLayout(card)
 
         title_label = QLabel(
-            f"{icon} {title}" if unlocked else f"🔒 {title}"
+            f"{r_icon} {title}" if unlocked else f"🔒 {title}"
         )
-        title_label.setStyleSheet("""
-        QLabel {
-            font-size: 15px;
-            font-weight: bold;
-            color: white;
-        }
-        """)
+        title_label.setStyleSheet("font-size: 15px; font-weight: bold; color: white;")
 
         desc_label = QLabel(description)
-        desc_label.setStyleSheet("""
-        QLabel {
-            font-size: 13px;
-            color: #b8b8d1;
-        }
-        """)
+        desc_label.setStyleSheet("font-size: 13px; color: #b8b8d1;")
 
-        rarity_label = QLabel(rarity.upper())
-        rarity_label.setStyleSheet(f"""
+        category_label = QLabel(f"{c_icon} {category.upper()}")
+        category_label.setStyleSheet(f"""
         QLabel {{
             font-size: 11px;
             font-weight: bold;
-            color: {color};
+            color: {c_color};
         }}
         """)
 
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
-        layout.addWidget(rarity_label)
+        layout.addWidget(category_label)
 
         return card
