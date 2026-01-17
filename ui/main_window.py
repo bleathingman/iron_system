@@ -74,39 +74,112 @@ class MainWindow(QMainWindow):
         central.setLayout(self.layout)
         self.setCentralWidget(central)
 
+    # -------------------------
+    # DARK THEME
+    # -------------------------
+    def _apply_dark_theme(self):
+        """
+        Applique le thème Dark Solo Leveling
+        """
+        self.setStyleSheet("""
+        QWidget {
+            background-color: #0b0f1a;
+            color: #e6e6f0;
+            font-family: Segoe UI;
+            font-size: 14px;
+        }
+
+        QLabel#systemLabel {
+            color: #7f5af0;
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: 4px;
+        }
+
+        QLabel#levelLabel {
+            font-size: 22px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        QLabel#expLabel {
+            font-size: 14px;
+            color: #b8b8d1;
+        }
+
+        QProgressBar#expBar {
+            background-color: #1a1f36;
+            border: 1px solid #2d325a;
+            border-radius: 6px;
+            height: 18px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        QProgressBar#expBar::chunk {
+            background-color: #7f5af0;
+            border-radius: 6px;
+        }
+
+        QPushButton {
+            background-color: #1a1f36;
+            border: 1px solid #2d325a;
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: #ffffff;
+        }
+
+        QPushButton:hover {
+            background-color: #232863;
+            border-color: #7f5af0;
+        }
+
+        QPushButton:pressed {
+            background-color: #7f5af0;
+        }
+
+        QPushButton:disabled {
+            background-color: #111426;
+            color: #555;
+            border-color: #222;
+        }
+        """)
+
+    # -------------------------
+    # DASHBOARD REFRESH
+    # -------------------------
     def refresh_dashboard(self):
         """
-        Met à jour tout l'affichage :
+        Met à jour l'affichage :
         - niveau
-        - EXP
+        - barre EXP
         - objectifs débloqués
         """
         level = self.user.stats.get_level()
 
-        self.level_label.setText(f"🆙 Niveau {level}")
+        self.level_label.setText(f"LEVEL {level}")
         self.exp_label.setText(
-            f"EXP : {self.user.stats.get_exp_in_level()} / 100 "
-            f"(Niveau {level} → {level + 1})"
+            f"EXP {self.user.stats.get_exp_in_level()} / 100 "
+            f"(→ Level {level + 1})"
         )
 
-
-        # Barre de progression vers le prochain niveau
         self.exp_bar.setValue(self.user.stats.get_exp_in_level())
 
-        # Nettoyage des anciens objectifs affichés
+        # Nettoyage anciens objectifs
         while self.objectives_container.count():
             self.objectives_container.takeAt(0)
 
-        # Chargement des objectifs accessibles
         objectives = self.storage.load_objectives_for_level(level)
 
         for obj in objectives:
             row = QHBoxLayout()
-            label = QLabel(f"{obj.title} (+{obj.value} EXP)")
-            button = QPushButton("Valider")
 
-            # Chaque bouton déclenche une validation propre
-            button.clicked.connect(lambda _, o=obj: self.validate_objective(o))
+            label = QLabel(f"{obj.title}  +{obj.value} EXP")
+            button = QPushButton("VALIDER")
+
+            button.clicked.connect(
+                lambda _, o=obj: self.validate_objective(o)
+            )
 
             row.addWidget(label)
             row.addStretch()
@@ -114,9 +187,12 @@ class MainWindow(QMainWindow):
 
             self.objectives_container.addLayout(row)
 
+    # -------------------------
+    # ACTION
+    # -------------------------
     def validate_objective(self, objective):
         """
-        Appelé quand l'utilisateur valide un objectif.
+        Validation d'un objectif via le core
         """
         if self.engine.validate_objective(objective):
             self.storage.save_stats(self.user.stats)

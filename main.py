@@ -32,13 +32,33 @@ def run_cli():
 
 
 # =========================
-# UI MODE
+# UI MODE (PRODUCTION)
 # =========================
 def run_ui():
     from PySide6.QtWidgets import QApplication
+    from PySide6.QtGui import QPalette, QColor
+    from PySide6.QtCore import Qt
+
     from ui.main_window import MainWindow
 
     app = QApplication(sys.argv)
+
+    # =========================
+    # FORCE DARK PALETTE (ANTI THEME LINUX)
+    # =========================
+    palette = QPalette()
+    palette.setColor(QPalette.Window, QColor("#0b0f1a"))
+    palette.setColor(QPalette.WindowText, Qt.white)
+    palette.setColor(QPalette.Base, QColor("#0b0f1a"))
+    palette.setColor(QPalette.AlternateBase, QColor("#1a1f36"))
+    palette.setColor(QPalette.Text, Qt.white)
+    palette.setColor(QPalette.Button, QColor("#1a1f36"))
+    palette.setColor(QPalette.ButtonText, Qt.white)
+    palette.setColor(QPalette.Highlight, QColor("#7f5af0"))
+    palette.setColor(QPalette.HighlightedText, Qt.white)
+
+    app.setPalette(palette)
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
