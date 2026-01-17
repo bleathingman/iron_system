@@ -1,7 +1,4 @@
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QFrame,
-    QScrollArea, QPushButton
-)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame
 from PySide6.QtCore import Qt
 
 from core.storage import Storage
@@ -9,30 +6,29 @@ from core.storage import Storage
 
 class AchievementsWindow(QWidget):
     """
-    Écran Achievements
-    Responsive + scroll + fermeture explicite
+    Fenêtre Achievements
+    Version desktop simple avec différenciation visuelle
     """
 
-    def __init__(self, storage: Storage, parent=None):
-        super().__init__(parent)
+    def __init__(self, storage: Storage):
+        super().__init__()
 
         self.storage = storage
 
         self.setWindowTitle("Achievements")
-        self.setMinimumSize(380, 420)
+        self.resize(420, 520)
 
         self._setup_ui()
         self._load_achievements()
 
     # -------------------------
-    # UI SETUP
+    # UI
     # -------------------------
     def _setup_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(10)
+        self.layout = QVBoxLayout(self)
+        self.layout.setAlignment(Qt.AlignTop)
+        self.layout.setSpacing(12)
 
-        # ===== TITLE =====
         title = QLabel("ACHIEVEMENTS")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
@@ -43,39 +39,7 @@ class AchievementsWindow(QWidget):
             letter-spacing: 3px;
         }
         """)
-        main_layout.addWidget(title)
-
-        # ===== SCROLL =====
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-
-        content = QWidget()
-        self.content_layout = QVBoxLayout(content)
-        self.content_layout.setSpacing(10)
-        self.content_layout.setAlignment(Qt.AlignTop)
-
-        scroll.setWidget(content)
-        main_layout.addWidget(scroll)
-
-        # ===== CLOSE BUTTON =====
-        close_btn = QPushButton("FERMER")
-        close_btn.setFixedHeight(34)
-        close_btn.clicked.connect(self.close)
-        close_btn.setStyleSheet("""
-        QPushButton {
-            background-color: #1a1f36;
-            border: 1px solid #2d325a;
-            border-radius: 6px;
-            color: #ffffff;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background-color: #232863;
-            border-color: #7f5af0;
-        }
-        """)
-        main_layout.addWidget(close_btn)
+        self.layout.addWidget(title)
 
     # -------------------------
     # DATA
@@ -89,25 +53,23 @@ class AchievementsWindow(QWidget):
             (5, "Level 5", "Atteindre le niveau 5", False),
             (6, "Level 10", "Atteindre le niveau 10", False),
 
-            # --- SECRETS ---
-            (100, "Lone Wolf", "3 objectifs validés le même jour", True),
-            (101, "No Mercy", "5 validations d'affilée", True),
-            (102, "Awakening", "Atteindre exactement le niveau 7", True),
-            (103, "Iron Mind", "Streak de 7 jours", True),
+            # Secrets
+            (100, "???", "Succès secret", True),
+            (101, "???", "Succès secret", True),
+            (102, "???", "Succès secret", True),
+            (103, "???", "Succès secret", True),
         ]
 
         for ach_id, title, desc, secret in achievements:
             unlocked = self.storage.is_achievement_unlocked(ach_id)
 
             if secret and not unlocked:
-                self._add_card("???", "Succès secret", False)
+                self._add_card("🔒 ???", "Succès secret", False)
             else:
                 self._add_card(title, desc, unlocked)
 
-        self.content_layout.addStretch()
-
     # -------------------------
-    # UI CARD
+    # CARD
     # -------------------------
     def _add_card(self, title: str, description: str, unlocked: bool):
         card = QFrame()
@@ -116,7 +78,7 @@ class AchievementsWindow(QWidget):
             background-color: {'#1a1f36' if unlocked else '#111426'};
             border: 1px solid {'#7f5af0' if unlocked else '#2d325a'};
             border-radius: 8px;
-            padding: 10px;
+            padding: 12px;
         }}
         """)
 
@@ -144,16 +106,4 @@ class AchievementsWindow(QWidget):
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
 
-        self.content_layout.addWidget(card)
-
-    # -------------------------
-    # UX
-    # -------------------------
-    def keyPressEvent(self, event):
-        """
-        Permet de fermer avec ESC
-        """
-        if event.key() == Qt.Key_Escape:
-            self.close()
-        else:
-            super().keyPressEvent(event)
+        self.layout.addWidget(card)

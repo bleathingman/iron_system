@@ -72,22 +72,18 @@ class MainWindow(QMainWindow):
         menu_bar = QMenuBar(self)
         settings_menu = menu_bar.addMenu("⚙ Paramètres")
 
-        # --- Achievements ---
         achievements_action = settings_menu.addAction("🏆 Mes Achievements")
         achievements_action.triggered.connect(self.open_achievements)
 
-        # --- Stats ---
         stats_action = settings_menu.addAction("📊 Statistiques")
         stats_action.triggered.connect(self.open_stats)
 
         settings_menu.addSeparator()
 
-        # --- Toggle audio ---
         self.audio_action = settings_menu.addAction("")
         self.audio_action.triggered.connect(self._toggle_mute)
         self._update_audio_action_text()
 
-        # --- Volume slider ---
         slider = QSlider(Qt.Horizontal)
         slider.setRange(0, 100)
         slider.setValue(int(self._volume * 100))
@@ -107,19 +103,16 @@ class MainWindow(QMainWindow):
 
     def open_achievements(self):
         """
-        Ouvre l'écran 'Mes Achievements'
+        Ouvre l'écran 'Mes Achievements' (fenêtre indépendante)
         """
-        # Référence conservée pour éviter le garbage collection
-        self.achievements_window = AchievementsWindow(self.storage, parent=self)
+        self.achievements_window = AchievementsWindow(self.storage)
         self.achievements_window.show()
 
-    
     def open_stats(self):
         """
-        Ouvre l'écran Statistiques
+        Ouvre l'écran Statistiques (fenêtre indépendante)
         """
-        # Référence conservée pour éviter le garbage collection
-        self.stats_window = StatsWindow(self.user, self.storage, parent=self)
+        self.stats_window = StatsWindow(self.user, self.storage)
         self.stats_window.show()
 
 
