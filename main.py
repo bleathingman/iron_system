@@ -3,8 +3,10 @@ from core.user import User
 from core.storage import Storage
 from core.engine import Engine
 
-user = User()
 storage = Storage()
+user = User()
+user.stats = storage.load_stats()
+
 engine = Engine(user, storage)
 
 obj = Objective(
@@ -15,6 +17,7 @@ obj = Objective(
 )
 
 success = engine.validate_objective(obj)
+storage.save_stats(user.stats)
 
 print("VALIDATED:", success)
 print("POINTS:", user.stats.total_points)
