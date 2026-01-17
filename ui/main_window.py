@@ -3,10 +3,9 @@ from PySide6.QtWidgets import (
     QPushButton, QHBoxLayout, QProgressBar,
     QGraphicsDropShadowEffect
 )
-from PySide6.QtCore import (
-    Qt, QPropertyAnimation, QEasingCurve, QSize
-)
+from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QUrl
 from PySide6.QtGui import QColor
+from PySide6.QtMultimedia import QSoundEffect
 
 from core.user import User
 from core.storage import Storage
@@ -17,8 +16,8 @@ class MainWindow(QMainWindow):
     """
     Fenêtre principale d'IronSystem
     Dark Solo Leveling theme
-    - FIX double buttons
-    - FIX level up animation (visible)
+    + animations
+    + sons SYSTEM
     """
 
     def __init__(self):
@@ -38,11 +37,31 @@ class MainWindow(QMainWindow):
         self.engine = Engine(self.user, self.storage)
 
         # =========================
+        # AUDIO SYSTEM
+        # =========================
+        self._init_sounds()
+
+        # =========================
         # UI
         # =========================
         self._setup_ui()
         self._apply_dark_theme()
         self.refresh_dashboard()
+
+    # -------------------------
+    # AUDIO
+    # -------------------------
+    def _init_sounds(self):
+        """
+        Initialise les sons SYSTEM
+        """
+        self.sound_exp = QSoundEffect()
+        self.sound_exp.setSource(QUrl.fromLocalFile("assets/sounds/exp.wav"))
+        self.sound_exp.setVolume(0.4)
+
+        self.sound_level_up = QSoundEffect()
+        self.sound_level_up.setSource(QUrl.fromLocalFile("assets/sounds/level_up.wav"))
+        self.sound_level_up.setVolume(0.6)
 
     # -------------------------
     # UI SETUP
@@ -53,24 +72,20 @@ class MainWindow(QMainWindow):
         self.layout.setAlignment(Qt.AlignTop)
         self.layout.setSpacing(18)
 
-        # ===== SYSTEM HEADER =====
         self.system_label = QLabel("SYSTEM")
         self.system_label.setAlignment(Qt.AlignCenter)
         self.system_label.setObjectName("systemLabel")
 
-        # ===== LEVEL =====
         self.level_label = QLabel()
         self.level_label.setAlignment(Qt.AlignCenter)
         self.level_label.setObjectName("levelLabel")
 
-        # Glow effect for LEVEL UP
         self.level_glow = QGraphicsDropShadowEffect(self)
         self.level_glow.setBlurRadius(0)
         self.level_glow.setColor(QColor("#7f5af0"))
         self.level_glow.setOffset(0)
         self.level_label.setGraphicsEffect(self.level_glow)
 
-        # ===== EXP =====
         self.exp_label = QLabel()
         self.exp_label.setAlignment(Qt.AlignCenter)
         self.exp_label.setObjectName("expLabel")
@@ -80,7 +95,6 @@ class MainWindow(QMainWindow):
         self.exp_bar.setFormat("%v / %m EXP")
         self.exp_bar.setObjectName("expBar")
 
-        # Glow effect for EXP
         self.exp_glow = QGraphicsDropShadowEffect(self)
         self.exp_glow.setBlurRadius(0)
         self.exp_glow.setColor(QColor("#7f5af0"))
@@ -93,7 +107,6 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.exp_bar)
         self.layout.addSpacing(25)
 
-        # ===== OBJECTIVES =====
         self.objectives_container = QVBoxLayout()
         self.layout.addLayout(self.objectives_container)
 
@@ -101,7 +114,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
     # -------------------------
-    # DARK THEME
+    # THEME
     # -------------------------
     def _apply_dark_theme(self):
         self.setStyleSheet("""
@@ -111,25 +124,21 @@ class MainWindow(QMainWindow):
             font-family: Segoe UI;
             font-size: 14px;
         }
-
         QLabel#systemLabel {
             color: #7f5af0;
             font-size: 26px;
             font-weight: bold;
             letter-spacing: 4px;
         }
-
         QLabel#levelLabel {
             font-size: 22px;
             font-weight: bold;
             color: #ffffff;
         }
-
         QLabel#expLabel {
             font-size: 14px;
             color: #b8b8d1;
         }
-
         QProgressBar#expBar {
             background-color: #14182b;
             border: 1px solid #2d325a;
@@ -138,12 +147,10 @@ class MainWindow(QMainWindow):
             text-align: center;
             color: #ffffff;
         }
-
         QProgressBar#expBar::chunk {
             background-color: #7f5af0;
             border-radius: 6px;
         }
-
         QPushButton {
             background-color: #1a1f36;
             border: 1px solid #2d325a;
@@ -151,12 +158,10 @@ class MainWindow(QMainWindow):
             padding: 6px 14px;
             color: #ffffff;
         }
-
         QPushButton:hover {
             background-color: #232863;
             border-color: #7f5af0;
         }
-
         QPushButton:pressed {
             background-color: #7f5af0;
         }
@@ -166,7 +171,7 @@ class MainWindow(QMainWindow):
     # DASHBOARD
     # -------------------------
     def refresh_dashboard(self):
-        previous_level = getattr(self, "_last_level", None)
+        prev_level = getattr(self, "_last_level", None)
         level = self.user.stats.get_level()
 
         self.level_label.setText(f"LEVEL {level}")
@@ -175,21 +180,17 @@ class MainWindow(QMainWindow):
         )
         self.exp_bar.setValue(self.user.stats.get_exp_in_level())
 
-        if previous_level is not None and level > previous_level:
+        if prev_level is not None and level > prev_level:
             self._animate_level_up()
+            self.sound_level_up.play()
 
         self._last_level = level
 
-        # === CLEAN OBJECTIVES PROPERLY ===
+        # Nettoyage UI
         while self.objectives_container.count():
             item = self.objectives_container.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-            elif item.layout():
-                while item.layout().count():
-                    sub = item.layout().takeAt(0)
-                    if sub.widget():
-                        sub.widget().deleteLater()
 
         objectives = self.storage.load_objectives_for_level(level)
 
@@ -199,10 +200,7 @@ class MainWindow(QMainWindow):
 
             label = QLabel(f"{obj.title}  +{obj.value} EXP")
             button = QPushButton("VALIDER")
-
-            button.clicked.connect(
-                lambda _, o=obj: self.validate_objective(o)
-            )
+            button.clicked.connect(lambda _, o=obj: self.validate_objective(o))
 
             row_layout.addWidget(label)
             row_layout.addStretch()
@@ -216,6 +214,7 @@ class MainWindow(QMainWindow):
     def validate_objective(self, objective):
         if self.engine.validate_objective(objective):
             self.storage.save_stats(self.user.stats)
+            self.sound_exp.play()
             self._animate_exp_gain()
 
         self.refresh_dashboard()
@@ -243,11 +242,6 @@ class MainWindow(QMainWindow):
         self._exp_anim_back = anim_back
 
     def _animate_level_up(self):
-        """
-        Animation VISIBLE de level up :
-        - glow violet
-        - pulse
-        """
         anim = QPropertyAnimation(self.level_glow, b"blurRadius")
         anim.setDuration(600)
         anim.setStartValue(0)
