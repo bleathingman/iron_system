@@ -1,11 +1,14 @@
 import json
-import os
+from pathlib import Path
 from datetime import date
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SAVE_PATH = os.path.join(BASE_DIR, "data", "save.json")
+PROJECT_ROOT = Path("/home/divh/iron_system")
+DATA_DIR = PROJECT_ROOT / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-DAILY_XP_CAP = 120  # XP max gagnable par jour
+SAVE_PATH = DATA_DIR / "save.json"
+
+DAILY_XP_CAP = 120
 
 
 def create_default_save():
@@ -18,6 +21,7 @@ def create_default_save():
         "week": 1,
         "completed_today": [],
         "last_completed_date": None,
+        "last_xp_date": None,
         "profile": {
             "total_days": 0,
             "total_xp_earned": 0,
@@ -30,48 +34,42 @@ def create_default_save():
 
 
 def load_save():
-    if not os.path.exists(SAVE_PATH):
-        save = create_default_save()
-        save_progress(save)
-        return save
+    if not SAVE_PATH.exists():
+        return create_default_save()
 
     try:
-        with open(SAVE_PATH, "r") as f:
+        with open(SAVE_PATH, "r", encoding="utf-8") as f:
             save = json.load(f)
     except Exception:
-        save = create_default_save()
-        save_progress(save)
-        return save
+        return create_default_save()
 
     return validate_save(save)
 
 
 def validate_save(save):
     default = create_default_save()
-    for k in default:
+    for k, v in default.items():
         if k not in save:
-            save[k] = default[k]
+            save[k] = v
     return save
 
 
 def save_progress(save):
-    os.makedirs(os.path.dirname(SAVE_PATH), exist_ok=True)
-    with open(SAVE_PATH, "w") as f:
-        json.dump(save, f, indent=2)
+    with open(SAVE_PATH, "w", encoding="utf-8") as f:
+        json.dump(save, f, indent=2, ensure_ascii=False)
+        f.flush()
 
 
 # =====================
-# XP & LEVEL SYSTEM
+# XP & LEVEL
 # =====================
 def add_xp_and_level_up(save, xp):
     today = str(date.today())
 
-    # reset daily xp if new day
     if save.get("last_xp_date") != today:
         save["daily_xp"] = 0
         save["last_xp_date"] = today
 
-    # cap XP
     xp_allowed = max(0, DAILY_XP_CAP - save["daily_xp"])
     xp = min(xp, xp_allowed)
 
@@ -82,7 +80,6 @@ def add_xp_and_level_up(save, xp):
     save["xp"] += xp
     save["profile"]["total_xp_earned"] += xp
 
-    # LEVEL UP
     while save["xp"] >= save["xp_required"]:
         save["xp"] -= save["xp_required"]
         save["level"] += 1

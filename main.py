@@ -1,6 +1,7 @@
 import sys
-import os
 import json
+from pathlib import Path
+
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout,
     QLabel, QPushButton, QProgressBar, QLineEdit
@@ -10,6 +11,7 @@ from PySide6.QtGui import QPixmap
 
 from quests import get_daily_quests
 from progression import (
+    SAVE_PATH,
     load_save, save_progress,
     add_xp_and_level_up,
     log_daily_progress,
@@ -22,13 +24,9 @@ from ui import apply_style, get_rank
 from profile_window import ProfileWindow
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SAVE_PATH = os.path.join(BASE_DIR, "data", "save.json")
+BASE_DIR = Path("/home/divh/iron_system")
 
 
-# =========================
-# RANK ICON UTILS (PNG)
-# =========================
 def get_rank_icon_path(rank_name: str):
     mapping = {
         "INITIÉ": "initie.png",
@@ -42,13 +40,12 @@ def get_rank_icon_path(rank_name: str):
         "HÉROS": "heros.png",
         "LÉGENDE": "legende.png",
     }
-    filename = mapping.get(rank_name, "initie.png")
-    return os.path.join(BASE_DIR, "assets", "ranks", filename)
+    return BASE_DIR / "assets" / "ranks" / mapping.get(rank_name, "initie.png")
 
 
-# =========================
+# =====================
 # MINI LOGIN
-# =========================
+# =====================
 class UserSetup(QWidget):
     def __init__(self, save, on_done):
         super().__init__()
@@ -64,12 +61,11 @@ class UserSetup(QWidget):
         layout.addWidget(QLabel("👤 Création du profil"))
 
         self.name = QLineEdit()
-        self.name.setPlaceholderText("Pseudo")
-
         self.weight = QLineEdit()
-        self.weight.setPlaceholderText("Poids actuel (kg)")
-
         self.goal = QLineEdit()
+
+        self.name.setPlaceholderText("Pseudo")
+        self.weight.setPlaceholderText("Poids actuel (kg)")
         self.goal.setPlaceholderText("Objectif de poids (kg)")
 
         btn = QPushButton("Valider")
@@ -96,20 +92,16 @@ class UserSetup(QWidget):
         self.on_done()
 
 
-# =========================
+# =====================
 # MAIN APP
-# =========================
+# =====================
 class IronSystem(QWidget):
     def __init__(self):
         super().__init__()
         self.save = load_save()
 
         user = self.save.get("user", {})
-        if (
-            not user.get("name")
-            or user.get("weight", 0) == 0
-            or user.get("goal_weight", 0) == 0
-        ):
+        if not user.get("name"):
             self.setup = UserSetup(self.save, self.start)
             return
 
@@ -123,43 +115,30 @@ class IronSystem(QWidget):
 
         self.setWindowTitle("IRON SYSTEM")
         self.setFixedSize(520, 720)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
 
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
 
-        # =====================
-        # RANK ICON ONLY (PNG 100x100)
-        # =====================
+        # ===== RANK ICON =====
         rank_name, _ = get_rank(self.save["level"])
-
-        self.rank_icon = QLabel()
-        self.rank_icon.setAlignment(Qt.AlignCenter)
-
-        pixmap = QPixmap(get_rank_icon_path(rank_name))
+        self.rank_icon = QLabel(alignment=Qt.AlignCenter)
+        pixmap = QPixmap(str(get_rank_icon_path(rank_name)))
         self.rank_icon.setPixmap(
             pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         )
-
         self.layout.addWidget(self.rank_icon)
 
-        # =====================
-        # PROFILE BTN
-        # =====================
+        # ===== PROFILE BTN =====
         profile_btn = QPushButton(f"👤 {self.save['user']['name']}")
         profile_btn.clicked.connect(self.open_profile)
         self.layout.addWidget(profile_btn)
 
-        # =====================
-        # QUESTS
-        # =====================
+        # ===== QUESTS =====
         self.labels = {}
         self.buttons = {}
 
         for quest, data in self.quests.items():
             label = QLabel(f"{quest} : {data['value']} (+{data['xp']} XP)")
-            label.setProperty("xp", True)
-
             btn = QPushButton("Valider")
             btn.clicked.connect(lambda _, q=quest: self.validate_quest(q))
 
@@ -173,9 +152,7 @@ class IronSystem(QWidget):
                 label.setText(f"✔ {quest}")
                 btn.setEnabled(False)
 
-        # =====================
-        # XP BAR
-        # =====================
+        # ===== XP BAR =====
         self.progress = QProgressBar()
         self.progress.setMaximum(self.save["xp_required"])
         self.progress.setValue(self.save["xp"])
@@ -185,20 +162,13 @@ class IronSystem(QWidget):
         self.layout.addWidget(self.info)
 
         apply_style(self, self.save["level"])
-        self.force_restyle()
         self.update_ui()
         self.show()
 
-    # =====================
-    # PROFILE
-    # =====================
     def open_profile(self):
         self.profile_window = ProfileWindow(self.save, self.on_reset)
         self.profile_window.show()
 
-    # =====================
-    # VALIDATE QUEST
-    # =====================
     def validate_quest(self, quest):
         if quest in self.completed:
             return
@@ -216,16 +186,6 @@ class IronSystem(QWidget):
         self.labels[quest].setText(f"✔ {quest}")
         self.buttons[quest].setEnabled(False)
 
-        # update rank icon
-        rank_name, _ = get_rank(self.save["level"])
-        pixmap = QPixmap(get_rank_icon_path(rank_name))
-        self.rank_icon.setPixmap(
-            pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        )
-
-        apply_style(self, self.save["level"])
-        self.force_restyle()
-
         self.progress.setMaximum(self.save["xp_required"])
         self.progress.setValue(self.save["xp"])
         self.update_ui()
@@ -237,22 +197,12 @@ class IronSystem(QWidget):
             f"🔥 {self.save['streak']}"
         )
 
-    def force_restyle(self):
-        self.style().unpolish(self)
-        self.style().polish(self)
-
-    # =====================
-    # RESET
-    # =====================
     def on_reset(self):
-        with open(SAVE_PATH, "w") as f:
+        with open(SAVE_PATH, "w", encoding="utf-8") as f:
             json.dump(create_default_save(), f, indent=2)
         self.close()
 
 
-# =========================
-# RUN
-# =========================
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = IronSystem()
