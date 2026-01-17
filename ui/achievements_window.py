@@ -10,7 +10,9 @@ from core.storage import Storage
 class AchievementsWindow(QWidget):
     """
     Fenêtre Achievements
-    Version desktop lisible + scroll
+    - compteur X / Y
+    - tri automatique (débloqués en haut)
+    - scroll
     """
 
     def __init__(self, storage: Storage):
@@ -32,9 +34,9 @@ class AchievementsWindow(QWidget):
         main_layout.setAlignment(Qt.AlignTop)
         main_layout.setSpacing(10)
 
-        title = QLabel("ACHIEVEMENTS")
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("""
+        self.title_label = QLabel("ACHIEVEMENTS")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setStyleSheet("""
         QLabel {
             font-size: 22px;
             font-weight: bold;
@@ -42,9 +44,18 @@ class AchievementsWindow(QWidget):
             letter-spacing: 3px;
         }
         """)
-        main_layout.addWidget(title)
+        main_layout.addWidget(self.title_label)
 
-        # Scroll area
+        self.counter_label = QLabel("")
+        self.counter_label.setAlignment(Qt.AlignCenter)
+        self.counter_label.setStyleSheet("""
+        QLabel {
+            font-size: 13px;
+            color: #b8b8d1;
+        }
+        """)
+        main_layout.addWidget(self.counter_label)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
@@ -62,6 +73,7 @@ class AchievementsWindow(QWidget):
     # -------------------------
     def _load_achievements(self):
         achievements = [
+            # publics
             (1, "First Blood", "Premier objectif validé", False),
             (2, "Getting Started", "5 objectifs validés", False),
             (3, "Consistent", "Streak de 3 jours", False),
@@ -69,27 +81,53 @@ class AchievementsWindow(QWidget):
             (5, "Level 5", "Atteindre le niveau 5", False),
             (6, "Level 10", "Atteindre le niveau 10", False),
 
-            # Secrets
+            # secrets
             (100, "???", "Succès secret", True),
             (101, "???", "Succès secret", True),
             (102, "???", "Succès secret", True),
             (103, "???", "Succès secret", True),
         ]
 
+        unlocked_cards = []
+        locked_cards = []
+
+        unlocked_count = 0
+
         for ach_id, title, desc, secret in achievements:
             unlocked = self.storage.is_achievement_unlocked(ach_id)
 
-            if secret and not unlocked:
-                self._add_card("???", "Succès secret", False)
+            if unlocked:
+                unlocked_count += 1
+                unlocked_cards.append(
+                    self._build_card(title, desc, True)
+                )
             else:
-                self._add_card(title, desc, unlocked)
+                if secret:
+                    locked_cards.append(
+                        self._build_card("???", "Succès secret", False)
+                    )
+                else:
+                    locked_cards.append(
+                        self._build_card(title, desc, False)
+                    )
+
+        total = len(achievements)
+        self.counter_label.setText(f"{unlocked_count} / {total} débloqués")
+
+        # Débloqués en haut
+        for card in unlocked_cards:
+            self.content_layout.addWidget(card)
+
+        # Verrouillés en bas
+        for card in locked_cards:
+            self.content_layout.addWidget(card)
 
         self.content_layout.addStretch()
 
     # -------------------------
-    # CARD
+    # CARD BUILDER
     # -------------------------
-    def _add_card(self, title: str, description: str, unlocked: bool):
+    def _build_card(self, title: str, description: str, unlocked: bool) -> QFrame:
         card = QFrame()
         card.setStyleSheet(f"""
         QFrame {{
@@ -124,4 +162,4 @@ class AchievementsWindow(QWidget):
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
 
-        self.content_layout.addWidget(card)
+        return card
