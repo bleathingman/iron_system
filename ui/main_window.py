@@ -14,6 +14,7 @@ from PySide6.QtMultimedia import QSoundEffect
 from core.user import User
 from core.storage import Storage
 from core.engine import Engine
+from ui.achievements_window import AchievementsWindow
 
 
 class MainWindow(QMainWindow):
@@ -70,12 +71,18 @@ class MainWindow(QMainWindow):
         menu_bar = QMenuBar(self)
         settings_menu = menu_bar.addMenu("⚙ Paramètres")
 
-        # Toggle audio ON/OFF
+        # --- Achievements ---
+        achievements_action = settings_menu.addAction("🏆 Mes Achievements")
+        achievements_action.triggered.connect(self.open_achievements)
+
+        settings_menu.addSeparator()
+
+        # --- Toggle audio ---
         self.audio_action = settings_menu.addAction("")
         self.audio_action.triggered.connect(self._toggle_mute)
         self._update_audio_action_text()
 
-        # Slider volume (inline)
+        # --- Volume slider ---
         slider = QSlider(Qt.Horizontal)
         slider.setRange(0, 100)
         slider.setValue(int(self._volume * 100))
@@ -92,6 +99,14 @@ class MainWindow(QMainWindow):
         settings_menu.addAction(slider_action)
 
         self.setMenuBar(menu_bar)
+
+    def open_achievements(self):
+        """
+        Ouvre l'écran 'Mes Achievements'
+        """
+        # Référence conservée pour éviter le garbage collection
+        self.achievements_window = AchievementsWindow(self.storage)
+        self.achievements_window.show()
 
     def _toggle_mute(self):
         self._muted = not self._muted
