@@ -1,25 +1,54 @@
-from core.objective import Objective, Frequency
-from core.user import User
-from core.storage import Storage
-from core.engine import Engine
+import sys
 
-storage = Storage()
-user = User()
-user.stats = storage.load_stats()
+# =========================
+# CLI MODE (DEV / TEST)
+# =========================
+def run_cli():
+    from core.objective import Objective, Frequency
+    from core.user import User
+    from core.storage import Storage
+    from core.engine import Engine
 
-engine = Engine(user, storage)
+    storage = Storage()
+    user = User()
+    user.stats = storage.load_stats()
 
-obj = Objective(
-    id=1,
-    title="Workout",
-    frequency=Frequency.DAILY,
-    value=20
-)
+    engine = Engine(user, storage)
 
-success = engine.validate_objective(obj)
-storage.save_stats(user.stats)
+    obj = Objective(
+        id=1,
+        title="Workout",
+        frequency=Frequency.DAILY,
+        value=20
+    )
 
-print("VALIDATED:", success)
-print("POINTS:", user.stats.total_points)
-print("STREAK:", user.stats.current_streak)
-print("BEST STREAK:", user.stats.best_streak)
+    success = engine.validate_objective(obj)
+    storage.save_stats(user.stats)
+
+    print("VALIDATED:", success)
+    print("POINTS:", user.stats.total_points)
+    print("STREAK:", user.stats.current_streak)
+    print("BEST STREAK:", user.stats.best_streak)
+
+
+# =========================
+# UI MODE
+# =========================
+def run_ui():
+    from PySide6.QtWidgets import QApplication
+    from ui.main_window import MainWindow
+
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
+
+
+# =========================
+# ENTRY POINT
+# =========================
+if __name__ == "__main__":
+    if "--cli" in sys.argv:
+        run_cli()
+    else:
+        run_ui()
