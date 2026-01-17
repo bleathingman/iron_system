@@ -1,6 +1,8 @@
 import sqlite3
 from pathlib import Path
 
+from core.objective import Objective, Frequency, Category
+
 
 class Storage:
     """
@@ -40,7 +42,6 @@ class Storage:
         )
         """)
 
-        # Initialisation stats (1 utilisateur)
         cursor.execute("""
         INSERT OR IGNORE INTO stats (
             id,
@@ -70,11 +71,12 @@ class Storage:
         # -------------------------
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS objectives (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
+            category TEXT NOT NULL,
             frequency TEXT NOT NULL,
-            value INTEGER NOT NULL,
-            min_level INTEGER DEFAULT 1
+            min_level INTEGER NOT NULL,
+            value INTEGER NOT NULL
         )
         """)
 
@@ -148,61 +150,140 @@ class Storage:
     # =========================
     def seed_objectives(self):
         """
-        Injecte des objectifs de base (si DB vide)
+        Initialise la liste des objectifs (exercices)
+        Aucune duplication possible grâce aux IDs uniques
         """
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM objectives")
-        count = cursor.fetchone()[0]
-
-        if count > 0:
-            return
 
         objectives = [
-            # Niveau 1–3 (débutants)
-            ("5 pompes", "daily", 10, 1),
-            ("10 squats", "daily", 10, 1),
-            ("5 min de marche", "daily", 10, 1),
+            # ------------------
+            # DISCIPLINE
+            # ------------------
+            Objective(
+                id="pushups_5",
+                title="5 pompes",
+                category=Category.DISCIPLINE,
+                frequency=Frequency.DAILY,
+                min_level=1,
+                value=10
+            ),
+            Objective(
+                id="squats_10",
+                title="10 squats",
+                category=Category.DISCIPLINE,
+                frequency=Frequency.DAILY,
+                min_level=1,
+                value=10
+            ),
+            Objective(
+                id="plank_30s",
+                title="Gainage 30 secondes",
+                category=Category.DISCIPLINE,
+                frequency=Frequency.DAILY,
+                min_level=1,
+                value=10
+            ),
 
-            # Niveau 4–6
-            ("10 pompes", "daily", 15, 4),
-            ("20 squats", "daily", 15, 4),
-            ("5 min gainage", "daily", 15, 4),
+            # ------------------
+            # ENDURANCE
+            # ------------------
+            Objective(
+                id="walk_10min",
+                title="Marche 10 minutes",
+                category=Category.ENDURANCE,
+                frequency=Frequency.DAILY,
+                min_level=1,
+                value=10
+            ),
+            Objective(
+                id="jog_5min",
+                title="Jogging 5 minutes",
+                category=Category.ENDURANCE,
+                frequency=Frequency.DAILY,
+                min_level=5,
+                value=15
+            ),
 
-            # Niveau 7–10
-            ("20 pompes", "daily", 20, 7),
-            ("30 squats", "daily", 20, 7),
-            ("10 min course", "daily", 20, 7),
+            # ------------------
+            # MENTAL
+            # ------------------
+            Objective(
+                id="breathing_3min",
+                title="Respiration contrôlée 3 minutes",
+                category=Category.MENTAL,
+                frequency=Frequency.DAILY,
+                min_level=1,
+                value=10
+            ),
+            Objective(
+                id="stretching_5min",
+                title="Étirements 5 minutes",
+                category=Category.MENTAL,
+                frequency=Frequency.DAILY,
+                min_level=1,
+                value=10
+            ),
+            Objective(
+                id="meditation_5min",
+                title="Méditation 5 minutes",
+                category=Category.MENTAL,
+                frequency=Frequency.DAILY,
+                min_level=5,
+                value=15
+            ),
         ]
 
-        cursor.executemany("""
-        INSERT INTO objectives (title, frequency, value, min_level)
-        VALUES (?, ?, ?, ?)
-        """, objectives)
+        for obj in objectives:
+            self.save_objective(obj)
 
+    def save_objective(self, objective: Objective):
+        """
+        Sauvegarde un objectif dans la DB
+        Aucun doublon possible grâce à l'ID unique
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        INSERT OR IGNORE INTO objectives (
+            id, title, category, frequency, min_level, value
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            objective.id,
+            objective.title,
+            objective.category.value,
+            objective.frequency.value,
+            objective.min_level,
+            objective.value
+        ))
         self.conn.commit()
 
-    def load_objectives_for_level(self, level: int):
+    def load_objectives_for_level(self, level: int) -> list[Objective]:
         """
         Charge les objectifs disponibles pour un niveau donné
         """
-        from core.objective import Objective, Frequency
-
         cursor = self.conn.cursor()
         cursor.execute("""
-        SELECT id, title, frequency, value
+        SELECT
+            id,
+            title,
+            category,
+            frequency,
+            min_level,
+            value
         FROM objectives
         WHERE min_level <= ?
+        ORDER BY min_level ASC
         """, (level,))
 
-        rows = cursor.fetchall()
         objectives = []
 
-        for row in rows:
+        for row in cursor.fetchall():
             objectives.append(
                 Objective(
                     id=row["id"],
                     title=row["title"],
+                    category=Category(row["category"]),
                     frequency=Frequency(row["frequency"]),
+                    min_level=row["min_level"],
                     value=row["value"]
                 )
             )
