@@ -13,6 +13,9 @@ class Objective:
     id: int
     title: str
     frequency: Frequency
-    value: int  # points gagnés
+    value: int  # points
     completed: bool = False
     last_completed: date | None = None
+
+    def can_be_completed_today(self) -> bool:
+        return self.last_completed != date.today()

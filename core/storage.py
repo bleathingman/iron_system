@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 
 class Storage:
@@ -30,3 +31,23 @@ class Storage:
         """)
 
         self.conn.commit()
+
+    def save_history(self, entry):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT INTO history (timestamp, action, impact) VALUES (?, ?, ?)",
+            (entry.timestamp.isoformat(), entry.action, entry.impact)
+        )
+        self.conn.commit()
+
+    def get_last_validation_date(self):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT timestamp FROM history ORDER BY timestamp DESC LIMIT 1"
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        return datetime.fromisoformat(row[0]).date()
