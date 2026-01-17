@@ -9,11 +9,8 @@ class Engine:
 
     def validate_objective(self, objective):
         """
-        Valide un objectif si possible
+        Valide un objectif (mode entraînement libre)
         """
-        if not objective.can_be_completed_today():
-            return False
-
         # ➕ EXP
         self.user.stats.add_exp(objective.value)
 
@@ -21,11 +18,8 @@ class Engine:
         self.user.stats.total_validations += 1
         self.user.stats.register_validation()
 
-        # 📅 date de validation
-        objective.last_completed = date.today()
-        self.storage.save_objective_completion(objective)
-
         return True
+
 
     def _update_streak(self):
         today = date.today()

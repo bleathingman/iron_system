@@ -30,6 +30,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.DEBUG = False
 
         self.setWindowTitle("IronSystem")
         self.setMinimumSize(500, 560)
@@ -303,14 +304,32 @@ class MainWindow(QMainWindow):
     # ACTION
     # -------------------------
     def validate_objective(self, objective):
-        print(
-            "[DEBUG]",
-            objective.title,
-            "can_be_completed_today =",
-            objective.can_be_completed_today(),
-            "last_completed_at =",
-            getattr(objective, "last_completed_at", None)
-        )
+        if not objective.can_be_completed_today():
+            self._show_info_popup(
+                "Objectif Elite déjà validé",
+                "Reviens la semaine prochaine 💪"
+            )
+            return
+
+        if self.engine.validate_objective(objective):
+            self.storage.save_stats(self.user.stats)
+            self.sound_exp.play()
+            self._animate_exp_gain()
+            self._check_achievements()
+
+        self.refresh_dashboard()
+           
+        if self.DEBUG:
+            print(
+                "[DEBUG]",
+                objective.title,
+                "can_be_completed_today =",
+                objective.can_be_completed_today(),
+                "last_completed =",
+                objective.last_completed
+            )
+
+
 
     # -------------------------
     # ACHIEVEMENTS
