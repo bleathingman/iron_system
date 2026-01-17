@@ -5,8 +5,10 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QHBoxLayout,
+    QProgressBar,
 )
 from PySide6.QtCore import Qt
+from datetime import date
 
 from core.user import User
 from core.storage import Storage
@@ -14,12 +16,15 @@ from core.engine import Engine
 from core.objective import Objective, Frequency
 
 
+DAILY_EXP_GOAL = 100
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("IronSystem")
-        self.setMinimumSize(420, 380)
+        self.setMinimumSize(440, 420)
 
         # =========================
         # CORE
@@ -30,7 +35,7 @@ class MainWindow(QMainWindow):
         self.engine = Engine(self.user, self.storage)
 
         # =========================
-        # OBJECTIFS — NIVEAU 1 (SOLO LEVELING STYLE)
+        # OBJECTIFS — NIVEAU 1
         # =========================
         self.objectives = [
             Objective(1, "20 Pompes", Frequency.DAILY, 20),
@@ -67,7 +72,15 @@ class MainWindow(QMainWindow):
         self.streak_label.setStyleSheet("font-size: 16px;")
         self.best_streak_label.setStyleSheet("font-size: 14px; color: gray;")
 
+        # Barre d'EXP journalière
+        self.exp_bar = QProgressBar()
+        self.exp_bar.setMaximum(DAILY_EXP_GOAL)
+        self.exp_bar.setTextVisible(True)
+        self.exp_bar.setAlignment(Qt.AlignCenter)
+        self.exp_bar.setFormat("%v / %m EXP")
+
         self.layout.addWidget(self.exp_label)
+        self.layout.addWidget(self.exp_bar)
         self.layout.addWidget(self.streak_label)
         self.layout.addWidget(self.best_streak_label)
         self.layout.addSpacing(25)
@@ -112,8 +125,41 @@ class MainWindow(QMainWindow):
     # DISPLAY
     # -------------------------
     def refresh_dashboard(self):
+        # EXP totale
         self.exp_label.setText(f"🧬 EXP : {self.user.stats.total_points}")
+
+        # Barre d'EXP journalière (capée à 100)
+        today_exp = self._calculate_today_exp()
+        self.exp_bar.setValue(min(today_exp, DAILY_EXP_GOAL))
+
+        # Streaks
         self.streak_label.setText(f"🔥 Streak : {self.user.stats.current_streak}")
         self.best_streak_label.setText(
             f"🏆 Meilleur streak : {self.user.stats.best_streak}"
         )
+
+        # Désactivation des objectifs déjà validés aujourd'hui
+        for obj in self.objectives:
+            button = self.objective_buttons[obj.id]
+
+            if obj.last_completed == date.today():
+                button.setEnabled(False)
+                button.setText("Validé")
+            else:
+                button.setEnabled(True)
+                button.setText("Valider")
+
+    # -------------------------
+    # UTILS (UI ONLY)
+    # -------------------------
+    def _calculate_today_exp(self) -> int:
+        """
+        Calcul simple côté UI :
+        EXP gagnée aujourd'hui = somme des objectifs validés aujourd'hui
+        (pas de logique métier, juste lecture d'état)
+        """
+        total = 0
+        for obj in self.objectives:
+            if obj.last_completed == date.today():
+                total += obj.value
+        return total
