@@ -1,20 +1,12 @@
 from PySide6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QLabel,
-    QPushButton,
-    QHBoxLayout,
-    QProgressBar,
+    QMainWindow, QWidget, QVBoxLayout, QLabel,
+    QPushButton, QHBoxLayout, QProgressBar
 )
 from PySide6.QtCore import Qt
-from datetime import date
 
 from core.user import User
 from core.storage import Storage
 from core.engine import Engine
-from core.objective import Objective, Frequency
-
 
 DAILY_EXP_GOAL = 100
 
@@ -24,30 +16,19 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("IronSystem")
-        self.setMinimumSize(440, 440)
+        self.setMinimumSize(460, 480)
 
-        # =========================
         # CORE
         # =========================
         self.storage = Storage()
+        self.storage.seed_level_1_objectives()
+
         self.user = User()
         self.user.stats = self.storage.load_stats()
         self.engine = Engine(self.user, self.storage)
 
-        # =========================
-        # OBJECTIFS — LEVEL 1 (AWAKENING)
-        # =========================
-        self.objectives = [
-            Objective(1, "5 Pompes (genoux ok)", Frequency.DAILY, 10),
-            Objective(2, "10 Abdos", Frequency.DAILY, 10),
-            Objective(3, "10 Squats lents", Frequency.DAILY, 10),
-            Objective(4, "Gainage 30 sec", Frequency.DAILY, 10),
-            Objective(5, "Marche 10 min", Frequency.DAILY, 10),
-        ]
+        self.objectives = self.storage.load_objectives()
 
-        # =========================
-        # UI
-        # =========================
         self._setup_ui()
         self.refresh_dashboard()
 
@@ -55,20 +36,21 @@ class MainWindow(QMainWindow):
     # UI SETUP
     # -------------------------
     def _setup_ui(self):
-        central_widget = QWidget()
+        central = QWidget()
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
 
-        # -------- DASHBOARD --------
+        self.level_label = QLabel()
         self.exp_label = QLabel()
         self.streak_label = QLabel()
         self.best_streak_label = QLabel()
 
-        self.exp_label.setAlignment(Qt.AlignCenter)
-        self.streak_label.setAlignment(Qt.AlignCenter)
-        self.best_streak_label.setAlignment(Qt.AlignCenter)
+        for lbl in (self.level_label, self.exp_label,
+                    self.streak_label, self.best_streak_label):
+            lbl.setAlignment(Qt.AlignCenter)
 
-        self.exp_label.setStyleSheet("font-size: 20px; font-weight: bold;")
+        self.level_label.setStyleSheet("font-size: 22px; font-weight: bold;")
+        self.exp_label.setStyleSheet("font-size: 18px;")
         self.streak_label.setStyleSheet("font-size: 16px;")
         self.best_streak_label.setStyleSheet("font-size: 14px; color: gray;")
 
@@ -77,6 +59,7 @@ class MainWindow(QMainWindow):
         self.exp_bar.setAlignment(Qt.AlignCenter)
         self.exp_bar.setFormat("%v / %m EXP")
 
+        self.layout.addWidget(self.level_label)
         self.layout.addWidget(self.exp_label)
         self.layout.addWidget(self.exp_bar)
         self.layout.addWidget(self.streak_label)
@@ -88,15 +71,9 @@ class MainWindow(QMainWindow):
 
         for obj in self.objectives:
             row = QHBoxLayout()
-
             label = QLabel(f"{obj.title} (+{obj.value} EXP)")
-            label.setStyleSheet("font-size: 14px;")
-
             button = QPushButton("Valider")
-            button.setFixedHeight(32)
-            button.clicked.connect(
-                lambda checked, o=obj: self.validate_objective(o)
-            )
+            button.clicked.connect(lambda _, o=obj: self.validate_objective(o))
 
             row.addWidget(label)
             row.addStretch()
@@ -105,49 +82,31 @@ class MainWindow(QMainWindow):
             self.layout.addLayout(row)
             self.objective_buttons[obj.id] = button
 
-        central_widget.setLayout(self.layout)
-        self.setCentralWidget(central_widget)
+        central.setLayout(self.layout)
+        self.setCentralWidget(central)
 
     # -------------------------
     # ACTION
     # -------------------------
     def validate_objective(self, objective):
         success = self.engine.validate_objective(objective)
-
         if success:
             self.storage.save_stats(self.user.stats)
-
         self.refresh_dashboard()
 
     # -------------------------
     # DISPLAY
     # -------------------------
     def refresh_dashboard(self):
-        self.exp_label.setText(f"🧬 EXP : {self.user.stats.total_points}")
+        level = self.user.stats.get_level()
+        self.level_label.setText(f"🆙 Niveau {level}")
 
-        today_exp = self._calculate_today_exp()
+        self.exp_label.setText(f"🧬 EXP totale : {self.user.stats.total_points}")
+
+        today_exp = self.storage.get_today_exp()
         self.exp_bar.setValue(min(today_exp, DAILY_EXP_GOAL))
 
         self.streak_label.setText(f"🔥 Streak : {self.user.stats.current_streak}")
         self.best_streak_label.setText(
             f"🏆 Meilleur streak : {self.user.stats.best_streak}"
         )
-
-        for obj in self.objectives:
-            button = self.objective_buttons[obj.id]
-            if obj.last_completed == date.today():
-                button.setEnabled(False)
-                button.setText("Validé")
-            else:
-                button.setEnabled(True)
-                button.setText("Valider")
-
-    # -------------------------
-    # UI UTILS
-    # -------------------------
-    def _calculate_today_exp(self) -> int:
-        total = 0
-        for obj in self.objectives:
-            if obj.last_completed == date.today():
-                total += obj.value
-        return total

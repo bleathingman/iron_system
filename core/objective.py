@@ -13,7 +13,7 @@ class Objective:
     id: int
     title: str
     frequency: Frequency
-    value: int  # points
+    value: int  # EXP
     completed: bool = False
     last_completed: date | None = None
 
