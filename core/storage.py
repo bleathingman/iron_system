@@ -71,6 +71,17 @@ class Storage:
         INSERT OR IGNORE INTO stats
         VALUES (1, 0, 0, 0, 0)
         """)
+        
+        # =========================
+        # TABLE ACHIEVEMENTS
+        # =========================
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS achievements (
+            id INTEGER PRIMARY KEY,
+            unlocked INTEGER DEFAULT 0
+        )
+        """)
+
 
         self.conn.commit()
 
@@ -213,4 +224,25 @@ class Storage:
             (9, "Course 2 km", "daily", 25, 10),
         ])
 
+        self.conn.commit()
+
+    # =========================
+    # ACHIEVEMENTS
+    # =========================
+    def is_achievement_unlocked(self, achievement_id: int) -> bool:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT unlocked FROM achievements WHERE id = ?",
+            (achievement_id,)
+        )
+        row = cursor.fetchone()
+        return bool(row and row[0])
+
+    def unlock_achievement(self, achievement_id: int):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        INSERT INTO achievements (id, unlocked)
+        VALUES (?, 1)
+        ON CONFLICT(id) DO UPDATE SET unlocked = 1
+        """, (achievement_id,))
         self.conn.commit()
