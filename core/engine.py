@@ -7,20 +7,23 @@ class Engine:
         self.user = user
         self.storage = storage
 
-    def validate_objective(self, objective) -> bool:
+    def validate_objective(self, objective):
         """
-        Valide un objectif et met à jour les stats
+        Valide un objectif si possible
         """
-        today = date.today().isoformat()
+        if not objective.can_be_completed_today():
+            return False
 
-        # Empêcher la double validation le même jour
-        if objective.frequency == "daily":
-            last_day = self.storage.get_last_validation_date(objective.id)
-            if last_day == today:
-                return False
+        # ➕ EXP
+        self.user.stats.add_exp(objective.value)
 
-        # Mise à jour des statistiques (EXP, streak, combos, etc.)
+        # ➕ stats
+        self.user.stats.total_validations += 1
         self.user.stats.register_validation()
+
+        # 📅 date de validation
+        objective.last_completed = date.today()
+        self.storage.save_objective_completion(objective)
 
         return True
 

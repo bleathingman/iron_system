@@ -303,13 +303,14 @@ class MainWindow(QMainWindow):
     # ACTION
     # -------------------------
     def validate_objective(self, objective):
-        if self.engine.validate_objective(objective):
-            self.storage.save_stats(self.user.stats)
-            self.sound_exp.play()
-            self._animate_exp_gain()
-            self._check_achievements()
-
-        self.refresh_dashboard()
+        print(
+            "[DEBUG]",
+            objective.title,
+            "can_be_completed_today =",
+            objective.can_be_completed_today(),
+            "last_completed_at =",
+            getattr(objective, "last_completed_at", None)
+        )
 
     # -------------------------
     # ACHIEVEMENTS
@@ -416,6 +417,44 @@ class MainWindow(QMainWindow):
             self._animate_common_popup(popup)
         elif rarity == "rare":
             self._animate_rare_popup(popup)
+
+    # -------------------------
+    # INFO POPUP
+    # -------------------------
+    def _show_info_popup(self, title: str, message: str):
+        """
+        Popup simple d'information (cooldown, info système, etc.)
+        """
+        popup = QLabel(f"{title}\n{message}", self)
+        popup.setAlignment(Qt.AlignCenter)
+
+        popup.setStyleSheet("""
+        QLabel {
+            background-color: #1a1f36;
+            border: 2px solid #7f5af0;
+            border-radius: 10px;
+            padding: 14px;
+            color: white;
+            font-size: 14px;
+        }
+        """)
+
+        popup.setFixedSize(340, 90)
+        popup.move(
+            (self.width() - popup.width()) // 2,
+            120
+        )
+        popup.show()
+
+        # Fade out automatique
+        fade = QPropertyAnimation(popup, b"windowOpacity", self)
+        fade.setDuration(2200)
+        fade.setStartValue(1.0)
+        fade.setEndValue(0.0)
+        fade.finished.connect(popup.deleteLater)
+        fade.start()
+
+        self._info_popup_anim = fade
 
 
     # -------------------------
