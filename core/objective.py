@@ -23,7 +23,12 @@ class Objective:
     min_level: int
     value: int  # EXP
 
+    # 🔥 NOUVEAU : exercice & répétitions
+    exercise: str | None = None   # "pushups", "squats", "abs"
+    reps: int = 0                 # nombre de répétitions
+
     last_completed: date | None = None
 
     def can_be_completed_today(self) -> bool:
+        # FREE MODE pour l’instant
         return True

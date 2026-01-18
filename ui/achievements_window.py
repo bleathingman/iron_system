@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QFrame, QScrollArea, QHBoxLayout,
-    QPushButton, QProgressBar
+    QPushButton, QProgressBar, QSizePolicy
 )
 from PySide6.QtCore import Qt
 
@@ -13,11 +13,10 @@ class AchievementsWindow(QWidget):
     Fenêtre Achievements
     - compteur X / Y
     - barre de progression globale
-    - filtres (Tous / Débloqués / Non débloqués / Secrets)
-    - tri automatique
-    - rareté (commun / rare / légendaire)
-    - catégories (discipline / endurance / mental)
-    - scroll
+    - filtres
+    - succès secrets
+    - rareté / catégories
+    - achievements à progression (Steam-like)
     """
 
     def __init__(self, storage: Storage):
@@ -148,23 +147,63 @@ class AchievementsWindow(QWidget):
 
         achievements = [
             # id, title, desc, secret, rarity, category
-            (1, "First Blood", "Premier objectif validé", False, "common", "discipline"),
-            (2, "Getting Started", "5 objectifs validés", False, "common", "discipline"),
-            (3, "Consistent", "Streak de 3 jours", False, "rare", "discipline"),
-            (4, "Grinder", "25 objectifs validés", False, "rare", "endurance"),
-            (5, "Level 5", "Atteindre le niveau 5", False, "rare", "mental"),
-            (6, "Level 10", "Atteindre le niveau 10", False, "legendary", "mental"),
 
-            # secrets
-            (100, "Awakening", "Pouvoir caché éveillé", True, "legendary", "mental"),
-            (101, "Lone Wolf", "Avancer seul", True, "legendary", "discipline"),
-            (102, "Iron Mind", "Mental d'acier", True, "legendary", "mental"),
-            (103, "No Mercy", "Aucune faiblesse", True, "legendary", "endurance"),
+            (1, "Premier Pas", "Valider ton premier objectif", False, "common", "discipline"),
+            (2, "Routine", "Valider 5 objectifs", False, "common", "discipline"),
+            (3, "Déterminé", "Valider 10 objectifs", False, "rare", "discipline"),
+            (4, "Machine", "Valider 25 objectifs", False, "rare", "endurance"),
+
+            (10, "Sur la lancée", "3 validations consécutives", False, "common", "discipline"),
+            (11, "Focus", "5 validations consécutives", False, "rare", "mental"),
+            (12, "Mental d’acier", "10 validations consécutives", False, "rare", "mental"),
+
+            (20, "Ça pique", "50 validations", False, "rare", "endurance"),
+            (21, "No Pain No Gain", "100 validations", False, "legendary", "endurance"),
+
+            (100, "Awakening", "Atteindre le niveau 5", True, "legendary", "mental"),
+            (101, "Overdrive", "3 validations dans la même journée", True, "rare", "discipline"),
+            (102, "Berserk", "5 validations d’affilée", True, "legendary", "endurance"),
+            (103, "Iron Will", "Atteindre le niveau 10", True, "legendary", "mental"),
+
+            (200, "Pushups I", "Effectuer 100 pompes", False, "common", "endurance"),
+            (201, "Pushups II", "Effectuer 500 pompes", False, "rare", "endurance"),
+            (202, "Pushups III", "Effectuer 1000 pompes", False, "legendary", "endurance"),
+            (203, "Pushups IV", "Effectuer 5000 pompes", False, "legendary", "endurance"),
+
+            (210, "Squats I", "Effectuer 250 squats", False, "common", "endurance"),
+            (211, "Squats II", "Effectuer 1000 squats", False, "rare", "endurance"),
+            (212, "Squats III", "Effectuer 2500 squats", False, "legendary", "endurance"),
+
+            (220, "Abdos I", "Effectuer 500 abdos", False, "common", "mental"),
+            (221, "Abdos II", "Effectuer 1500 abdos", False, "rare", "mental"),
+            (222, "Abdos III", "Effectuer 3000 abdos", False, "legendary", "mental"),
         ]
+
+        stats = self.storage.load_stats()
+        print(
+            "[ACH DEBUG]",
+            "pushups =", stats.total_pushups,
+            "squats =", stats.total_squats
+        )
+
+
+        progress_targets = {
+            200: (stats.total_pushups, 100),
+            201: (stats.total_pushups, 500),
+            202: (stats.total_pushups, 1000),
+            203: (stats.total_pushups, 5000),
+
+            210: (stats.total_squats, 250),
+            211: (stats.total_squats, 1000),
+            212: (stats.total_squats, 2500),
+
+            220: (stats.total_abs, 500),
+            221: (stats.total_abs, 1500),
+            222: (stats.total_abs, 3000),
+        }
 
         unlocked_cards = []
         locked_cards = []
-
         unlocked_count = 0
         total = len(achievements)
 
@@ -182,18 +221,20 @@ class AchievementsWindow(QWidget):
                 continue
 
             if secret and not unlocked:
-                card = self._build_card("???", "Succès secret", False, rarity, category)
+                card = self._build_card(
+                    ach_id, "???", "Succès secret", False, rarity, category, progress_targets
+                )
             else:
-                card = self._build_card(title, desc, unlocked, rarity, category)
+                card = self._build_card(
+                    ach_id, title, desc, unlocked, rarity, category, progress_targets
+                )
 
             (unlocked_cards if unlocked else locked_cards).append(card)
 
         self.counter_label.setText(f"{unlocked_count} / {total} débloqués")
         self.progress_bar.setValue(int((unlocked_count / total) * 100))
 
-        for card in unlocked_cards:
-            self.content_layout.addWidget(card)
-        for card in locked_cards:
+        for card in unlocked_cards + locked_cards:
             self.content_layout.addWidget(card)
 
         self.content_layout.addStretch()
@@ -214,7 +255,10 @@ class AchievementsWindow(QWidget):
     # -------------------------
     # CARD
     # -------------------------
-    def _build_card(self, title, description, unlocked, rarity, category) -> QFrame:
+    def _build_card(
+        self, ach_id, title, description, unlocked, rarity, category, progress_targets
+    ) -> QFrame:
+
         rarity_styles = {
             "common": ("#9aa0b5", "🥉"),
             "rare": ("#7f5af0", "🥈"),
@@ -231,6 +275,8 @@ class AchievementsWindow(QWidget):
         c_icon, c_color = category_styles.get(category, ("❓", "#999"))
 
         card = QFrame()
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+
         card.setStyleSheet(f"""
         QFrame {{
             background-color: {'#1a1f36' if unlocked else '#111426'};
@@ -241,14 +287,18 @@ class AchievementsWindow(QWidget):
         """)
 
         layout = QVBoxLayout(card)
+        layout.setSpacing(8)
+        layout.setContentsMargins(10, 10, 10, 10)
 
-        title_label = QLabel(
-            f"{r_icon} {title}" if unlocked else f"🔒 {title}"
-        )
+        title_label = QLabel(f"{r_icon} {title}" if unlocked else f"🔒 {title}")
+        title_label.setWordWrap(True)
         title_label.setStyleSheet("font-size: 15px; font-weight: bold; color: white;")
+        title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         desc_label = QLabel(description)
+        desc_label.setWordWrap(True)
         desc_label.setStyleSheet("font-size: 13px; color: #b8b8d1;")
+        desc_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         category_label = QLabel(f"{c_icon} {category.upper()}")
         category_label.setStyleSheet(f"""
@@ -262,5 +312,51 @@ class AchievementsWindow(QWidget):
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
         layout.addWidget(category_label)
+
+        # -------------------------
+        # MINI PROGRESSION BAR
+        # -------------------------
+        if ach_id in progress_targets and not unlocked:
+            current, goal = progress_targets[ach_id]
+            percent = int((current / goal) * 100) if goal > 0 else 0
+
+            bar_container = QHBoxLayout()
+            bar_container.setSpacing(8)
+
+            bar = QProgressBar()
+            bar.setMaximum(goal)
+            bar.setValue(min(current, goal))
+            bar.setTextVisible(False)   # ⛔ pas de texte dans la barre
+            bar.setFixedHeight(20)
+
+            bar.setStyleSheet("""
+                QProgressBar {
+                    background-color: #14182b;
+                    border-radius: 6px;
+                }
+                QProgressBar::chunk {
+                    background-color: #7f5af0;
+                    border-radius: 6px;
+                }
+            """)
+
+            percent_label = QLabel(f"{percent}%")
+            percent_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            percent_label.setStyleSheet("""
+                QLabel {
+                    border: 0px;
+                    color: #b8b8d1;
+                    font-size: 12px;
+                    font-weight: bold;
+                    min-width: 36px;
+                }
+            """)
+
+            bar_container.addWidget(bar, 1)      # prend tout l'espace
+            bar_container.addWidget(percent_label, 0)
+
+            layout.addSpacing(6)
+            layout.addLayout(bar_container)
+
 
         return card

@@ -48,7 +48,6 @@ class MainWindow(QMainWindow):
         # CORE
         # =========================
         self.storage = Storage()
-        self.storage.seed_objectives()
 
         self.user = User()
         self.user.stats = self.storage.load_stats()
@@ -117,8 +116,13 @@ class MainWindow(QMainWindow):
         self.setMenuBar(menu_bar)
 
     def open_achievements(self):
-        self.achievements_window = AchievementsWindow(self.storage)
-        self.achievements_window.show()
+        if hasattr(self, "achievements_window") and self.achievements_window.isVisible():
+            self.achievements_window._load_achievements()
+            self.achievements_window.raise_()
+            self.achievements_window.activateWindow()
+        else:
+            self.achievements_window = AchievementsWindow(self.storage)
+            self.achievements_window.show()
 
     def open_stats(self):
         self.stats_window = StatsWindow(self.user, self.storage)
@@ -298,16 +302,7 @@ class MainWindow(QMainWindow):
         daily_label.setObjectName("systemLabel")
         self.objectives_container.addWidget(daily_label)
 
-        for row in self.storage.load_daily_objectives():
-            obj = Objective(
-                id=row["id"],
-                title=row["title"],
-                category=Category(row["category"]),
-                frequency=Frequency.DAILY,
-                min_level=row["min_level"],
-                value=row["value"]
-            )
-
+        for obj in self.storage.load_daily_objectives():
             row_widget = QWidget()
             layout = QHBoxLayout(row_widget)
 
@@ -413,19 +408,44 @@ class MainWindow(QMainWindow):
         level = stats.get_level()
 
         return {
-            # publics
+            # Progression
             1: stats.total_validations >= 1,
             2: stats.total_validations >= 5,
-            3: stats.current_streak >= 3,
+            3: stats.total_validations >= 10,
             4: stats.total_validations >= 25,
-            5: level >= 5,
-            6: level >= 10,
 
-            # secrets
-            100: level >= 7,
+            # Streak / Focus
+            10: stats.current_streak >= 3,
+            11: stats.current_streak >= 5,
+            12: stats.current_streak >= 10,
+
+            # Endurance
+            20: stats.total_validations >= 50,
+            21: stats.total_validations >= 100,
+
+            # ELITE / Secrets
+            100: stats.get_level() >= 5,
             101: stats.validations_today >= 3,
-            102: stats.current_streak >= 7,
-            103: stats.combo_validations >= 5,
+            102: stats.combo_validations >= 5,
+            103: stats.get_level() >= 10,
+        }
+
+        return {
+            # Pushups
+            200: stats.total_pushups >= 100,
+            201: stats.total_pushups >= 500,
+            202: stats.total_pushups >= 1000,
+            203: stats.total_pushups >= 5000,
+
+            # Squats
+            210: stats.total_squats >= 250,
+            211: stats.total_squats >= 1000,
+            212: stats.total_squats >= 2500,
+
+            # Abs
+            220: stats.total_abs >= 500,
+            221: stats.total_abs >= 1500,
+            222: stats.total_abs >= 3000,
         }
     
     def _achievement_rarity(self, ach_id: int) -> str:
@@ -761,6 +781,3 @@ class MainWindow(QMainWindow):
 
         # Refresh UI
         self.refresh_dashboard()
-
-
-

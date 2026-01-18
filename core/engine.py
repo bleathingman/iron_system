@@ -14,17 +14,35 @@ class Engine:
         # ➕ EXP
         self.user.stats.add_exp(objective.value)
 
-        # ➕ stats
+        # ➕ stats globales
         self.user.stats.total_validations += 1
         self.user.stats.register_validation()
 
-        # 📅 IMPORTANT : définir la date ICI
-        objective.last_completed = date.today()
+        # 🏋️‍♂️ PROGRESSION EXERCICES
+        if objective.exercise and objective.reps > 0:
+            if objective.exercise == "pushups":
+                self.user.stats.total_pushups += objective.reps
+            elif objective.exercise == "squats":
+                self.user.stats.total_squats += objective.reps
+            elif objective.exercise == "lunges":
+                self.user.stats.total_lunges += objective.reps
+            elif objective.exercise == "abs":
+                self.user.stats.total_abs += objective.reps
 
-        # 💾 persistance
+            print(
+                "[ENGINE DEBUG]",
+                objective.title,
+                "exercise =", objective.exercise,
+                "reps =", objective.reps
+            )
+
+
+        # 📅 date de validation
+        objective.last_completed = date.today()
         self.storage.save_objective_completion(objective)
 
         return True
+
 
     def _update_streak(self):
         today = date.today()

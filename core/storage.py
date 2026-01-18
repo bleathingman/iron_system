@@ -19,6 +19,8 @@ class Storage:
         self.conn.row_factory = sqlite3.Row
 
         self._create_tables()
+        self.objectives = []
+        self.seed_objectives()
 
     # =========================
     # TABLE CREATION
@@ -42,6 +44,18 @@ class Storage:
             bonus_daily_date TEXT
         )
         """)
+
+        cursor.execute("PRAGMA table_info(stats)")
+        columns = [row["name"] for row in cursor.fetchall()]
+
+        for col in (
+            "total_pushups",
+            "total_squats",
+            "total_lunges",
+            "total_abs",
+        ):
+            if col not in columns:
+                cursor.execute(f"ALTER TABLE stats ADD COLUMN {col} INTEGER DEFAULT 0")
 
         # Ajout colonne bonus_daily_date si absente
         cursor.execute("PRAGMA table_info(stats)")
@@ -126,7 +140,12 @@ class Storage:
             best_streak,
             last_validation_date,
             validations_today,
-            combo_validations
+            combo_validations,
+
+            total_pushups,
+            total_squats,
+            total_lunges,
+            total_abs
         FROM stats
         WHERE id = 1
         """)
@@ -143,6 +162,11 @@ class Storage:
             last_validation_date=row["last_validation_date"],
             validations_today=row["validations_today"],
             combo_validations=row["combo_validations"],
+
+            total_pushups=row["total_pushups"],
+            total_squats=row["total_squats"],
+            total_lunges=row["total_lunges"],
+            total_abs=row["total_abs"],
         )
 
     def save_stats(self, stats: Stats):
@@ -155,7 +179,12 @@ class Storage:
             best_streak = ?,
             last_validation_date = ?,
             validations_today = ?,
-            combo_validations = ?
+            combo_validations = ?,
+
+            total_pushups = ?,
+            total_squats = ?,
+            total_lunges = ?,
+            total_abs = ?
         WHERE id = 1
         """, (
             stats.total_exp,
@@ -164,9 +193,15 @@ class Storage:
             stats.best_streak,
             stats.last_validation_date,
             stats.validations_today,
-            stats.combo_validations
+            stats.combo_validations,
+
+            stats.total_pushups,
+            stats.total_squats,
+            stats.total_lunges,
+            stats.total_abs,
         ))
         self.conn.commit()
+
 
     # =========================
     # OBJECTIVES BASE
@@ -203,50 +238,130 @@ class Storage:
             # ==================================================
 
             # Niveau 1–4
-            Objective("pushups_5", "5 pompes", Category.DISCIPLINE, Frequency.DAILY, 1, 10),
-            Objective("squats_10", "10 squats", Category.DISCIPLINE, Frequency.DAILY, 1, 10),
-            Objective("plank_20", "Gainage 20 secondes", Category.DISCIPLINE, Frequency.DAILY, 1, 10),
+            Objective(
+                "pushups_5", "5 pompes",
+                Category.DISCIPLINE, Frequency.DAILY, 1, 10,
+                exercise="pushups", reps=5
+            ),
+            Objective(
+                "squats_10", "10 squats",
+                Category.DISCIPLINE, Frequency.DAILY, 1, 10,
+                exercise="squats", reps=10
+            ),
+            Objective(
+                "plank_20", "Gainage 20 secondes",
+                Category.DISCIPLINE, Frequency.DAILY, 1, 10
+            ),
 
             # Niveau 5–9
-            Objective("pushups_10", "10 pompes", Category.DISCIPLINE, Frequency.DAILY, 5, 15),
-            Objective("squats_20", "20 squats", Category.DISCIPLINE, Frequency.DAILY, 5, 15),
-            Objective("plank_40", "Gainage 40 secondes", Category.DISCIPLINE, Frequency.DAILY, 5, 15),
+            Objective(
+                "pushups_10", "10 pompes",
+                Category.DISCIPLINE, Frequency.DAILY, 5, 15,
+                exercise="pushups", reps=10
+            ),
+            Objective(
+                "squats_20", "20 squats",
+                Category.DISCIPLINE, Frequency.DAILY, 5, 15,
+                exercise="squats", reps=20
+            ),
+            Objective(
+                "plank_40", "Gainage 40 secondes",
+                Category.DISCIPLINE, Frequency.DAILY, 5, 15
+            ),
 
             # Niveau 10–19
-            Objective("pushups_20", "20 pompes", Category.DISCIPLINE, Frequency.DAILY, 10, 25),
-            Objective("lunges_20", "20 fentes", Category.DISCIPLINE, Frequency.DAILY, 10, 25),
-            Objective("plank_60", "Gainage 1 minute", Category.DISCIPLINE, Frequency.DAILY, 10, 25),
+            Objective(
+                "pushups_20", "20 pompes",
+                Category.DISCIPLINE, Frequency.DAILY, 10, 25,
+                exercise="pushups", reps=20
+            ),
+            Objective(
+                "lunges_20", "20 fentes",
+                Category.DISCIPLINE, Frequency.DAILY, 10, 25,
+                exercise="lunges", reps=20
+            ),
+            Objective(
+                "plank_60", "Gainage 1 minute",
+                Category.DISCIPLINE, Frequency.DAILY, 10, 25
+            ),
 
             # Niveau 20+
-            Objective("pushups_slow_20", "20 pompes lentes", Category.DISCIPLINE, Frequency.DAILY, 20, 40),
-            Objective("squats_50", "50 squats", Category.DISCIPLINE, Frequency.DAILY, 20, 40),
-            Objective("plank_120", "Gainage 2 minutes", Category.DISCIPLINE, Frequency.DAILY, 25, 45),
+            Objective(
+                "pushups_slow_20", "20 pompes lentes",
+                Category.DISCIPLINE, Frequency.DAILY, 20, 40,
+                exercise="pushups", reps=20
+            ),
+            Objective(
+                "squats_50", "50 squats",
+                Category.DISCIPLINE, Frequency.DAILY, 20, 40,
+                exercise="squats", reps=50
+            ),
+            Objective(
+                "plank_120", "Gainage 2 minutes",
+                Category.DISCIPLINE, Frequency.DAILY, 25, 45
+            ),
 
             # ==================================================
             # 🫀 ENDURANCE — CARDIO
             # ==================================================
 
-            Objective("walk_10", "Marche 10 minutes", Category.ENDURANCE, Frequency.DAILY, 1, 10),
-            Objective("walk_20", "Marche 20 minutes", Category.ENDURANCE, Frequency.DAILY, 5, 15),
+            Objective(
+                "walk_10", "Marche 10 minutes",
+                Category.ENDURANCE, Frequency.DAILY, 1, 10
+            ),
+            Objective(
+                "walk_20", "Marche 20 minutes",
+                Category.ENDURANCE, Frequency.DAILY, 5, 15
+            ),
 
-            Objective("jog_5", "Jogging 5 minutes", Category.ENDURANCE, Frequency.DAILY, 5, 15),
-            Objective("jog_10", "Jogging 10 minutes", Category.ENDURANCE, Frequency.DAILY, 10, 25),
+            Objective(
+                "jog_5", "Jogging 5 minutes",
+                Category.ENDURANCE, Frequency.DAILY, 5, 15
+            ),
+            Objective(
+                "jog_10", "Jogging 10 minutes",
+                Category.ENDURANCE, Frequency.DAILY, 10, 25
+            ),
 
-            Objective("bike_20", "Vélo 20 minutes", Category.ENDURANCE, Frequency.DAILY, 15, 30),
-            Objective("run_20", "Course 20 minutes", Category.ENDURANCE, Frequency.DAILY, 20, 40),
+            Objective(
+                "bike_20", "Vélo 20 minutes",
+                Category.ENDURANCE, Frequency.DAILY, 15, 30
+            ),
+            Objective(
+                "run_20", "Course 20 minutes",
+                Category.ENDURANCE, Frequency.DAILY, 20, 40
+            ),
 
             # ==================================================
             # 🧠 RECOVERY — (MENTAL)
             # ==================================================
 
-            Objective("stretch_5", "Étirements légers 5 minutes", Category.MENTAL, Frequency.DAILY, 1, 10),
-            Objective("breathing_3", "Respiration post-effort 3 minutes", Category.MENTAL, Frequency.DAILY, 1, 10),
+            Objective(
+                "stretch_5", "Étirements légers 5 minutes",
+                Category.MENTAL, Frequency.DAILY, 1, 10
+            ),
+            Objective(
+                "breathing_3", "Respiration post-effort 3 minutes",
+                Category.MENTAL, Frequency.DAILY, 1, 10
+            ),
 
-            Objective("mobility_shoulders", "Mobilité épaules 5 minutes", Category.MENTAL, Frequency.DAILY, 5, 15),
-            Objective("stretch_10", "Étirements complets 10 minutes", Category.MENTAL, Frequency.DAILY, 10, 20),
+            Objective(
+                "mobility_shoulders", "Mobilité épaules 5 minutes",
+                Category.MENTAL, Frequency.DAILY, 5, 15
+            ),
+            Objective(
+                "stretch_10", "Étirements complets 10 minutes",
+                Category.MENTAL, Frequency.DAILY, 10, 20
+            ),
 
-            Objective("foam_5", "Auto-massage 5 minutes", Category.MENTAL, Frequency.DAILY, 15, 30),
-            Objective("mobility_full", "Mobilité complète 15 minutes", Category.MENTAL, Frequency.DAILY, 20, 40),
+            Objective(
+                "foam_5", "Auto-massage 5 minutes",
+                Category.MENTAL, Frequency.DAILY, 15, 30
+            ),
+            Objective(
+                "mobility_full", "Mobilité complète 15 minutes",
+                Category.MENTAL, Frequency.DAILY, 20, 40
+            ),
 
             # ==================================================
             # 🏆 ELITE — WEEKLY
@@ -258,7 +373,9 @@ class Storage:
                 Category.DISCIPLINE,
                 Frequency.WEEKLY,
                 10,
-                120
+                120,
+                exercise="pushups",
+                reps=100
             ),
 
             Objective(
@@ -289,6 +406,8 @@ class Storage:
             ),
         ]
 
+        self.objectives = objectives
+
         # 🔒 Anti-doublons + sauvegarde
         seen_ids = set()
         for obj in objectives:
@@ -298,33 +417,22 @@ class Storage:
             self.save_objective(obj)
 
 
-    def load_objectives_for_level(self, level: int):
+    def load_daily_objectives(self):
+        """
+        Retourne la liste des objectifs journaliers
+        (en utilisant la source de vérité self.objectives)
+        """
         cursor = self.conn.cursor()
-        cursor.execute("""
-        SELECT o.*, p.last_completed
-        FROM objectives o
-        LEFT JOIN objective_progress p
-        ON o.id = p.objective_id
-        WHERE o.min_level <= ?
-        """, (level,))
+        cursor.execute("SELECT objective_id FROM daily_objectives")
+        rows = cursor.fetchall()
 
-        objectives = []
-        for row in cursor.fetchall():
-            objectives.append(
-                Objective(
-                    id=row["id"],
-                    title=row["title"],
-                    category=Category(row["category"]),
-                    frequency=Frequency(row["frequency"]),
-                    min_level=row["min_level"],
-                    value=row["value"],
-                    last_completed=(
-                        date.fromisoformat(row["last_completed"])
-                        if row["last_completed"] else None
-                    )
-                )
-            )
-        return objectives
+        daily_ids = {row["objective_id"] for row in rows}
+
+        # On retourne les Objective seedés, PAS ceux recréés depuis la DB
+        return [
+            obj for obj in self.objectives
+            if obj.id in daily_ids
+        ]
 
     # =========================
     # OBJECTIVE PROGRESS
@@ -394,15 +502,26 @@ class Storage:
         self._set_daily_date(today)
         self.conn.commit()
 
-    def load_daily_objectives(self):
+    def load_objectives_for_level(self, level):
         cursor = self.conn.cursor()
-        cursor.execute("""
-        SELECT o.*
-        FROM objectives o
-        JOIN daily_objectives d
-        ON o.id = d.objective_id
-        """)
-        return cursor.fetchall()
+        cursor.execute("SELECT objective_id, last_completed FROM objective_progress")
+        rows = cursor.fetchall()
+
+        progress_map = {
+            row[0]: date.fromisoformat(row[1])
+            for row in rows if row[1]
+        }
+
+        result = []
+
+        for obj in self.objectives:
+            if obj.min_level <= level:
+                # 🔥 on applique le progrès SANS recréer l’objectif
+                if obj.id in progress_map:
+                    obj.last_completed = progress_map[obj.id]
+                result.append(obj)
+
+        return result
 
     def complete_daily_objective(self, objective_id: str):
         cursor = self.conn.cursor()
@@ -478,7 +597,6 @@ class Storage:
     # =========================
     # DAILY BONUS
     # =========================
-
 
     def all_daily_completed(self) -> bool:
         """
