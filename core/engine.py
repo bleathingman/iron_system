@@ -26,8 +26,6 @@ class Engine:
 
         return True
 
-
-
     def _update_streak(self):
         today = date.today()
         last_day = self.storage.get_last_validation_date()
@@ -49,3 +47,18 @@ class Engine:
             self.user.stats.best_streak,
             self.user.stats.current_streak
         )
+
+    def grant_daily_bonus_if_needed(self):
+        BONUS_EXP = 50
+
+        if not self.storage.all_daily_completed():
+            return False
+
+        if self.storage.daily_bonus_already_given():
+            return False
+
+        self.user.stats.add_exp(BONUS_EXP)
+        self.storage.mark_daily_bonus_given()
+        self.storage.save_stats(self.user.stats)
+
+        return BONUS_EXP

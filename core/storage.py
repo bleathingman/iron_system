@@ -38,9 +38,17 @@ class Storage:
             best_streak INTEGER DEFAULT 0,
             last_validation_date TEXT,
             validations_today INTEGER DEFAULT 0,
-            combo_validations INTEGER DEFAULT 0
+            combo_validations INTEGER DEFAULT 0,
+            bonus_daily_date TEXT
         )
         """)
+
+        # Ajout colonne bonus_daily_date si absente
+        cursor.execute("PRAGMA table_info(stats)")
+        columns = [row["name"] for row in cursor.fetchall()]
+
+        if "bonus_daily_date" not in columns:
+            cursor.execute("ALTER TABLE stats ADD COLUMN bonus_daily_date TEXT")
 
         cursor.execute("""
         INSERT OR IGNORE INTO stats (id) VALUES (1)
@@ -465,6 +473,43 @@ class Storage:
         """
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM elite_daily")
+        self.conn.commit()
+
+    # =========================
+    # DAILY BONUS
+    # =========================
+
+
+    def all_daily_completed(self) -> bool:
+        """
+        True si le pool journalier est vide
+        (= toutes les daily du jour ont été complétées)
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        SELECT COUNT(*) AS remaining
+        FROM daily_objectives
+        """)
+        row = cursor.fetchone()
+        return row["remaining"] == 0
+
+    def daily_bonus_already_given(self) -> bool:
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        SELECT bonus_daily_date
+        FROM stats
+        WHERE id = 1
+        """)
+        row = cursor.fetchone()
+        return row and row["bonus_daily_date"] == date.today().isoformat()
+
+    def mark_daily_bonus_given(self):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        UPDATE stats
+        SET bonus_daily_date = ?
+        WHERE id = 1
+        """, (date.today().isoformat(),))
         self.conn.commit()
     
     # =========================

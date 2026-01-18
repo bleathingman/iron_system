@@ -362,14 +362,26 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _validate_daily(self, objective):
         if self.engine.validate_objective(objective):
-            # 💾 SAUVEGARDE STATS (OBLIGATOIRE)
             self.storage.save_stats(self.user.stats)
-
             self.storage.complete_daily_objective(objective.id)
+
             self.sound_exp.play()
             self._animate_exp_gain()
+
+            # 🎁 BONUS D'ABORD
+            bonus = self.engine.grant_daily_bonus_if_needed()
+            if bonus:
+                self._show_info_popup(
+                    "🎉 Daily complétées",
+                    f"Bonus +{bonus} EXP"
+                )
+                self.sound_level_up.play()
+
+            # 🏆 ACHIEVEMENTS ENSUITE
             self._check_achievements()
+
             self.refresh_dashboard()
+
 
     def _validate_elite_daily(self, objective):
         if self.engine.validate_objective(objective):
