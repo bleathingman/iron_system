@@ -321,6 +321,42 @@ class MainWindow(QMainWindow):
 
             self.objectives_container.addWidget(row_widget)
 
+        # ===== ELITE DAILY =====
+        self.storage.generate_elite_daily(level)
+        elite = self.storage.load_elite_daily()
+
+        if elite:
+            elite_label = QLabel("🔥 ELITE DAILY")
+            elite_label.setAlignment(Qt.AlignCenter)
+            elite_label.setObjectName("systemLabel")
+            self.objectives_container.addWidget(elite_label)
+
+            obj = Objective(
+                id=elite["id"],
+                title=elite["title"],
+                category=Category(elite["category"]),
+                frequency=Frequency.WEEKLY,
+                min_level=elite["min_level"],
+                value=elite["value"]
+            )
+
+            row = QWidget()
+            layout = QHBoxLayout(row)
+
+            label = QLabel(f"{obj.title}  +{obj.value} EXP")
+            button = QPushButton("VALIDER")
+
+            button.clicked.connect(
+                lambda _, o=obj: self._validate_elite_daily(o)
+            )
+
+            layout.addWidget(label)
+            layout.addStretch()
+            layout.addWidget(button)
+
+            self.objectives_container.addWidget(row)
+
+
     # ------------------------------------------------------------------
     # ACTIONS
     # ------------------------------------------------------------------
@@ -334,6 +370,23 @@ class MainWindow(QMainWindow):
             self._animate_exp_gain()
             self._check_achievements()
             self.refresh_dashboard()
+
+    def _validate_elite_daily(self, objective):
+        if self.engine.validate_objective(objective):
+            self.storage.save_stats(self.user.stats)
+            self.storage.complete_elite_daily()
+
+            self.sound_level_up.play()
+            self._animate_level_up()
+            self._check_achievements()
+
+            self._show_info_popup(
+                "🔥 Elite Daily complétée",
+                f"+{objective.value} EXP"
+            )
+
+            self.refresh_dashboard()
+
 
 
     # -------------------------

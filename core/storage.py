@@ -96,6 +96,13 @@ class Storage:
         )
         """)
 
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS elite_daily (
+            objective_id TEXT PRIMARY KEY,
+            date TEXT NOT NULL
+        )
+        """)
+
         self.conn.commit()
 
     # =========================
@@ -395,6 +402,69 @@ class Storage:
             "DELETE FROM daily_objectives WHERE objective_id = ?",
             (objective_id,)
         )
+        self.conn.commit()
+
+    # =========================
+    # ELITE DAILY
+    # =========================
+
+    def load_elite_daily(self):
+        """
+        Retourne l'Elite Daily du jour (ou None)
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        SELECT o.*
+        FROM elite_daily e
+        JOIN objectives o ON o.id = e.objective_id
+        WHERE e.date = ?
+        """, (date.today().isoformat(),))
+        return cursor.fetchone()
+
+    def generate_elite_daily(self, level: int):
+        """
+        Génère UNE elite daily par jour (si absente)
+        """
+        today = date.today().isoformat()
+        cursor = self.conn.cursor()
+
+        # Déjà générée aujourd'hui ?
+        cursor.execute(
+            "SELECT 1 FROM elite_daily WHERE date = ?",
+            (today,)
+        )
+        if cursor.fetchone():
+            return
+
+        # Nettoyage ancien (sécurité)
+        cursor.execute("DELETE FROM elite_daily")
+
+        # Pool ELITE = objectifs WEEKLY accessibles
+        cursor.execute("""
+        SELECT id FROM objectives
+        WHERE frequency = 'weekly'
+        AND min_level <= ?
+        """, (level,))
+        rows = cursor.fetchall()
+
+        if not rows:
+            return
+
+        selected_id = random.choice(rows)["id"]
+
+        cursor.execute("""
+        INSERT INTO elite_daily (objective_id, date)
+        VALUES (?, ?)
+        """, (selected_id, today))
+
+        self.conn.commit()
+
+    def complete_elite_daily(self):
+        """
+        Supprime l'elite daily après validation
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM elite_daily")
         self.conn.commit()
     
     # =========================
