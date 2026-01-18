@@ -18,6 +18,9 @@ class Engine:
         self.user.stats.total_validations += 1
         self.user.stats.register_validation()
 
+        # Objective
+        self.storage.save_objective_completion(objective)
+
         return True
 
 
