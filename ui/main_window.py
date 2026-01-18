@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import (
     Qt, QPropertyAnimation, QEasingCurve,
-    QUrl, QSettings
+    QUrl, QSettings, QTimer
 )
 from PySide6.QtGui import QColor
 from PySide6.QtMultimedia import QSoundEffect
@@ -69,6 +69,16 @@ class MainWindow(QMainWindow):
 
         # Popup achievement actif (anti-bug)
         self._achievement_popup = None
+
+        # =========================
+        # DAILY TIMER (AUTO UPDATE)
+        # =========================
+        self._last_daily_date = datetime.now().date()
+
+        self.daily_timer = QTimer(self)
+        self.daily_timer.timeout.connect(self._on_daily_timer_tick)
+        self.daily_timer.start(60_000)  # toutes les 60 secondes
+
 
     # ------------------------------------------------------------------
     # MENU
@@ -193,7 +203,6 @@ class MainWindow(QMainWindow):
         self.daily_timer_label = QLabel()
         self.daily_timer_label.setAlignment(Qt.AlignCenter)
         self.daily_timer_label.setObjectName("expLabel")
-
         self.layout.addWidget(self.daily_timer_label)
 
 
@@ -629,22 +638,64 @@ class MainWindow(QMainWindow):
 
         self._achievement_anim = glow_anim
         self._achievement_fade = fade
+    
+    # -------------------------
+    # TIMER
+    # -------------------------
+    def _on_daily_timer_tick(self):
+        """
+        Tick du timer daily (toutes les minutes)
+        - met à jour le countdown
+        - détecte le nouveau jour
+        """
+        self._update_daily_timer()
+
+        today = datetime.now().date()
+        if today != self._last_daily_date:
+            self._last_daily_date = today
+            self._on_new_day()
 
     def _update_daily_timer(self):
-        """
-        Met à jour le timer avant le reset des Daily Quests
-        """
         now = datetime.now()
         tomorrow = (now + timedelta(days=1)).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
 
         remaining = tomorrow - now
-        hours, remainder = divmod(int(remaining.total_seconds()), 3600)
+        seconds = int(remaining.total_seconds())
+        hours, remainder = divmod(seconds, 3600)
         minutes = remainder // 60
 
         self.daily_timer_label.setText(
             f"⏳ Nouvelles Daily Quests dans {hours:02d}h {minutes:02d}m"
         )
+
+        # 🔥 Glow si < 1h
+        if hours < 1:
+            self.daily_timer_label.setStyleSheet(
+                "color: #f5c542; font-weight: bold;"
+            )
+        else:
+            self.daily_timer_label.setStyleSheet(
+                "color: #b8b8d1;"
+            )
+
+    def _on_new_day(self):
+        """
+        Appelé automatiquement à minuit
+        """
+        # Regénération des daily
+        level = self.user.stats.get_level()
+        self.storage.generate_daily_pool(level, count=3)
+
+        # Feedback visuel
+        self._show_info_popup(
+            "🌅 Nouveau jour",
+            "Nouvelles Daily Quests disponibles"
+        )
+
+        # Refresh UI
+        self.refresh_dashboard()
+
 
 
