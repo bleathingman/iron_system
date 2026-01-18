@@ -17,6 +17,7 @@ from core.objective import Objective, Frequency, Category
 from core.engine import Engine
 from ui.achievements_window import AchievementsWindow
 from ui.stats_window import StatsWindow
+from datetime import datetime, timedelta
 
 
 class MainWindow(QMainWindow):
@@ -188,6 +189,14 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.exp_bar)
         self.layout.addSpacing(25)
 
+        # ===== DAILY RESET TIMER =====
+        self.daily_timer_label = QLabel()
+        self.daily_timer_label.setAlignment(Qt.AlignCenter)
+        self.daily_timer_label.setObjectName("expLabel")
+
+        self.layout.addWidget(self.daily_timer_label)
+
+
         # ===== OBJECTIVES (SEUL LAYOUT NETTOYÉ) =====
         self.objectives_container = QVBoxLayout()
         self.layout.addLayout(self.objectives_container)
@@ -262,6 +271,10 @@ class MainWindow(QMainWindow):
         self.exp_label.setText(f"EXP {exp} / 100 → Level {level + 1}")
         self.exp_bar.setValue(exp)
 
+        # ⏱ DAILY TIMER
+        self._update_daily_timer()
+
+
         # DAILY
         self.storage.generate_daily_pool(level, count=3)
 
@@ -304,11 +317,15 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _validate_daily(self, objective):
         if self.engine.validate_objective(objective):
+            # 💾 SAUVEGARDE STATS (OBLIGATOIRE)
+            self.storage.save_stats(self.user.stats)
+
             self.storage.complete_daily_objective(objective.id)
             self.sound_exp.play()
             self._animate_exp_gain()
             self._check_achievements()
             self.refresh_dashboard()
+
 
     # -------------------------
     # ACHIEVEMENTS
@@ -612,5 +629,22 @@ class MainWindow(QMainWindow):
 
         self._achievement_anim = glow_anim
         self._achievement_fade = fade
+
+    def _update_daily_timer(self):
+        """
+        Met à jour le timer avant le reset des Daily Quests
+        """
+        now = datetime.now()
+        tomorrow = (now + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        remaining = tomorrow - now
+        hours, remainder = divmod(int(remaining.total_seconds()), 3600)
+        minutes = remainder // 60
+
+        self.daily_timer_label.setText(
+            f"⏳ Nouvelles Daily Quests dans {hours:02d}h {minutes:02d}m"
+        )
 
 
