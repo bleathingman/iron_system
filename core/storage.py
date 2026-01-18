@@ -344,6 +344,27 @@ class Storage:
 
         return objectives
 
+    # -------------------------
+    # OBJECTIVE PROGRESS
+    # -------------------------
+    def save_objective_completion(self, objective):
+        """
+        Sauvegarde / met à jour la date de complétion d'un objectif
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        INSERT INTO objective_progress (objective_id, last_completed)
+        VALUES (?, ?)
+        ON CONFLICT(objective_id)
+        DO UPDATE SET last_completed = excluded.last_completed
+        """, (
+            objective.id,
+            objective.last_completed.isoformat()
+            if objective.last_completed else None
+        ))
+        self.conn.commit()
+
+
     # =========================
     # ACHIEVEMENTS
     # =========================
