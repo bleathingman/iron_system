@@ -13,6 +13,7 @@ from PySide6.QtMultimedia import QSoundEffect
 
 from core.user import User
 from core.storage import Storage
+from core.objective import Objective, Frequency, Category
 from core.engine import Engine
 from ui.achievements_window import AchievementsWindow
 from ui.stats_window import StatsWindow
@@ -39,7 +40,6 @@ class MainWindow(QMainWindow):
         # SETTINGS (persistants)
         # =========================
         self.settings = QSettings("IronSystem", "IronSystemApp")
-
         self._volume = self.settings.value("audio/volume", 0.4, float)
         self._muted = self.settings.value("audio/muted", False, bool)
 
@@ -69,10 +69,9 @@ class MainWindow(QMainWindow):
         # Popup achievement actif (anti-bug)
         self._achievement_popup = None
 
-
-    # -------------------------
-    # MENU PARAMÈTRES
-    # -------------------------
+    # ------------------------------------------------------------------
+    # MENU
+    # ------------------------------------------------------------------
     def _setup_menu(self):
         menu_bar = QMenuBar(self)
         settings_menu = menu_bar.addMenu("⚙ Paramètres")
@@ -107,43 +106,17 @@ class MainWindow(QMainWindow):
         self.setMenuBar(menu_bar)
 
     def open_achievements(self):
-        """
-        Ouvre l'écran 'Mes Achievements' (fenêtre indépendante)
-        """
         self.achievements_window = AchievementsWindow(self.storage)
         self.achievements_window.show()
 
     def open_stats(self):
-        """
-        Ouvre l'écran Statistiques (fenêtre indépendante)
-        """
         self.stats_window = StatsWindow(self.user, self.storage)
         self.stats_window.show()
 
-
-    def _toggle_mute(self):
-        self._muted = not self._muted
-        self.settings.setValue("audio/muted", self._muted)
-        self._apply_audio_settings()
-        self._update_audio_action_text()
-
-    def _update_audio_action_text(self):
-        self.audio_action.setText(
-            "Audio : OFF" if self._muted else "Audio : ON"
-        )
-
-    def _on_volume_changed(self, value: int):
-        self._volume = value / 100
-        self.settings.setValue("audio/volume", self._volume)
-        self._apply_audio_settings()
-
-    # -------------------------
+    # ------------------------------------------------------------------
     # AUDIO
-    # -------------------------
+    # ------------------------------------------------------------------
     def _init_sounds(self):
-        """
-        Initialise les sons SYSTEM
-        """
         self.sound_exp = QSoundEffect()
         self.sound_exp.setSource(QUrl.fromLocalFile("assets/sounds/exp.wav"))
 
@@ -157,15 +130,30 @@ class MainWindow(QMainWindow):
         self.sound_exp.setVolume(volume)
         self.sound_level_up.setVolume(volume)
 
-    # -------------------------
+    def _toggle_mute(self):
+        self._muted = not self._muted
+        self.settings.setValue("audio/muted", self._muted)
+        self._apply_audio_settings()
+        self._update_audio_action_text()
+
+    def _update_audio_action_text(self):
+        self.audio_action.setText("Audio : OFF" if self._muted else "Audio : ON")
+
+    def _on_volume_changed(self, value: int):
+        self._volume = value / 100
+        self.settings.setValue("audio/volume", self._volume)
+        self._apply_audio_settings()
+
+    # ------------------------------------------------------------------
     # UI SETUP
-    # -------------------------
+    # ------------------------------------------------------------------
     def _setup_ui(self):
         central = QWidget()
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
         self.layout.setSpacing(18)
 
+        # ===== HEADER (JAMAIS NETTOYÉ) =====
         self.system_label = QLabel("SYSTEM")
         self.system_label.setAlignment(Qt.AlignCenter)
         self.system_label.setObjectName("systemLabel")
@@ -186,7 +174,6 @@ class MainWindow(QMainWindow):
 
         self.exp_bar = QProgressBar()
         self.exp_bar.setMaximum(100)
-        self.exp_bar.setFormat("%v / %m EXP")
         self.exp_bar.setObjectName("expBar")
 
         self.exp_glow = QGraphicsDropShadowEffect(self)
@@ -201,135 +188,127 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.exp_bar)
         self.layout.addSpacing(25)
 
+        # ===== OBJECTIVES (SEUL LAYOUT NETTOYÉ) =====
         self.objectives_container = QVBoxLayout()
         self.layout.addLayout(self.objectives_container)
 
         central.setLayout(self.layout)
         self.setCentralWidget(central)
 
-    # -------------------------
+    # ------------------------------------------------------------------
     # THEME
-    # -------------------------
+    # ------------------------------------------------------------------
     def _apply_dark_theme(self):
         self.setStyleSheet("""
-            QWidget {
-                background-color: #0b0f1a;
-                color: #e6e6f0;
-                font-family: Segoe UI;
-                font-size: 14px;
-            }
-            QLabel#systemLabel {
-                color: #7f5af0;
-                font-size: 26px;
-                font-weight: bold;
-                letter-spacing: 4px;
-            }
-            QLabel#levelLabel {
-                font-size: 22px;
-                font-weight: bold;
-                color: #ffffff;
-            }
-            QLabel#expLabel {
-                font-size: 14px;
-                color: #b8b8d1;
-            }
-            QProgressBar#expBar {
-                background-color: #14182b;
-                border: 1px solid #2d325a;
-                border-radius: 6px;
-                height: 18px;
-                text-align: center;
-                color: #ffffff;
-            }
-            QProgressBar#expBar::chunk {
-                background-color: #7f5af0;
-                border-radius: 6px;
-            }
-            QPushButton {
-                background-color: #1a1f36;
-                border: 1px solid #2d325a;
-                border-radius: 6px;
-                padding: 6px 14px;
-                color: #ffffff;
-            }
-            QPushButton:hover {
-                background-color: #232863;
-                border-color: #7f5af0;
-            }
-            QPushButton:pressed {
-                background-color: #7f5af0;
-            }
-            """)
+        QWidget {
+            background-color: #0b0f1a;
+            color: #e6e6f0;
+            font-family: Segoe UI;
+            font-size: 14px;
+        }
+        QLabel#systemLabel {
+            color: #7f5af0;
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: 4px;
+        }
+        QLabel#levelLabel {
+            font-size: 22px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        QLabel#expLabel {
+            font-size: 14px;
+            color: #b8b8d1;
+        }
+        QProgressBar#expBar {
+            background-color: #14182b;
+            border: 1px solid #2d325a;
+            border-radius: 6px;
+            height: 18px;
+            text-align: center;
+            color: #ffffff;
+        }
+        QProgressBar#expBar::chunk {
+            background-color: #7f5af0;
+            border-radius: 6px;
+        }
+        QPushButton {
+            background-color: #1a1f36;
+            border: 1px solid #2d325a;
+            border-radius: 6px;
+            padding: 6px 14px;
+            color: #ffffff;
+        }
+        QPushButton:hover {
+            background-color: #232863;
+            border-color: #7f5af0;
+        }
+        QPushButton:pressed {
+            background-color: #7f5af0;
+        }
+        """)
 
-    # -------------------------
-    # DASHBOARD
-    # -------------------------
+    # ------------------------------------------------------------------
+    # DASHBOARD (FIX PRINCIPAL ICI)
+    # ------------------------------------------------------------------
     def refresh_dashboard(self):
-        prev_level = getattr(self, "_last_level", None)
-        level = self.user.stats.get_level()
+        stats = self.user.stats
+        level = stats.get_level()
+        exp = stats.get_exp_in_level()
 
+        # 🔒 HEADER TOUJOURS MIS À JOUR
         self.level_label.setText(f"LEVEL {level}")
-        self.exp_label.setText(
-            f"EXP {self.user.stats.get_exp_in_level()} / 100 → Level {level + 1}"
-        )
-        self.exp_bar.setValue(self.user.stats.get_exp_in_level())
+        self.exp_label.setText(f"EXP {exp} / 100 → Level {level + 1}")
+        self.exp_bar.setValue(exp)
 
-        if prev_level is not None and level > prev_level:
-            self._animate_level_up()
-            self.sound_level_up.play()
-            
-            # Milestones légendaires
-            if level in (10, 25, 50, 100):
-                self._show_legendary_screen(f"LEVEL {level}")
+        # DAILY
+        self.storage.generate_daily_pool(level, count=3)
 
-        self._last_level = level
-
+        # NETTOYAGE UNIQUEMENT DES OBJECTIFS
         while self.objectives_container.count():
             item = self.objectives_container.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        for obj in self.storage.load_objectives_for_level(level):
-            row = QWidget()
-            row_layout = QHBoxLayout(row)
+        daily_label = QLabel("DAILY QUESTS")
+        daily_label.setAlignment(Qt.AlignCenter)
+        daily_label.setObjectName("systemLabel")
+        self.objectives_container.addWidget(daily_label)
+
+        for row in self.storage.load_daily_objectives():
+            obj = Objective(
+                id=row["id"],
+                title=row["title"],
+                category=Category(row["category"]),
+                frequency=Frequency.DAILY,
+                min_level=row["min_level"],
+                value=row["value"]
+            )
+
+            row_widget = QWidget()
+            layout = QHBoxLayout(row_widget)
+
             label = QLabel(f"{obj.title}  +{obj.value} EXP")
             button = QPushButton("VALIDER")
-            button.clicked.connect(lambda _, o=obj: self.validate_objective(o))
-            row_layout.addWidget(label)
-            row_layout.addStretch()
-            row_layout.addWidget(button)
-            self.objectives_container.addWidget(row)
+            button.clicked.connect(lambda _, o=obj: self._validate_daily(o))
 
-    # -------------------------
-    # ACTION
-    # -------------------------
-    def validate_objective(self, objective):
-        if not objective.can_be_completed_today():
-            self._show_info_popup(
-                "Objectif Elite déjà validé",
-                "Reviens la semaine prochaine 💪"
-            )
-            return
+            layout.addWidget(label)
+            layout.addStretch()
+            layout.addWidget(button)
 
+            self.objectives_container.addWidget(row_widget)
+
+    # ------------------------------------------------------------------
+    # ACTIONS
+    # ------------------------------------------------------------------
+    def _validate_daily(self, objective):
         if self.engine.validate_objective(objective):
-            self.storage.save_stats(self.user.stats)
+            self.storage.complete_daily_objective(objective.id)
             self.sound_exp.play()
             self._animate_exp_gain()
             self._check_achievements()
-
-        self.refresh_dashboard()
-           
-        if self.DEBUG:
-            print(
-                "[DEBUG]",
-                objective.title,
-                "can_be_completed_today =",
-                objective.can_be_completed_today(),
-                "last_completed =",
-                objective.last_completed
-            )
-
-
+            self.refresh_dashboard()
 
     # -------------------------
     # ACHIEVEMENTS

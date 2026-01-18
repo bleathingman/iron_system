@@ -1,7 +1,10 @@
 import sqlite3
+import random
 from pathlib import Path
+from datetime import date
 
 from core.objective import Objective, Frequency, Category
+from core.stats import Stats
 
 
 class Storage:
@@ -24,40 +27,27 @@ class Storage:
         cursor = self.conn.cursor()
 
         # -------------------------
-        # STATS TABLE
+        # STATS
         # -------------------------
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS stats (
             id INTEGER PRIMARY KEY,
             total_exp INTEGER DEFAULT 0,
             total_validations INTEGER DEFAULT 0,
-
             current_streak INTEGER DEFAULT 0,
             best_streak INTEGER DEFAULT 0,
-
             last_validation_date TEXT,
-
             validations_today INTEGER DEFAULT 0,
             combo_validations INTEGER DEFAULT 0
         )
         """)
 
         cursor.execute("""
-        INSERT OR IGNORE INTO stats (
-            id,
-            total_exp,
-            total_validations,
-            current_streak,
-            best_streak,
-            last_validation_date,
-            validations_today,
-            combo_validations
-        )
-        VALUES (1, 0, 0, 0, 0, NULL, 0, 0)
+        INSERT OR IGNORE INTO stats (id) VALUES (1)
         """)
 
         # -------------------------
-        # ACHIEVEMENTS TABLE
+        # ACHIEVEMENTS
         # -------------------------
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS achievements (
@@ -67,7 +57,7 @@ class Storage:
         """)
 
         # -------------------------
-        # OBJECTIVES TABLE
+        # OBJECTIVES (BASE)
         # -------------------------
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS objectives (
@@ -90,17 +80,28 @@ class Storage:
         )
         """)
 
+        # -------------------------
+        # DAILY POOL
+        # -------------------------
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS daily_objectives (
+            objective_id TEXT PRIMARY KEY
+        )
+        """)
+
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS daily_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        """)
+
         self.conn.commit()
 
     # =========================
     # STATS
     # =========================
-    def load_stats(self):
-        """
-        Charge les statistiques utilisateur
-        """
-        from core.stats import Stats
-
+    def load_stats(self) -> Stats:
         cursor = self.conn.cursor()
         cursor.execute("""
         SELECT
@@ -116,23 +117,20 @@ class Storage:
         """)
         row = cursor.fetchone()
 
-        if row:
-            return Stats(
-                total_exp=row["total_exp"],
-                total_validations=row["total_validations"],
-                current_streak=row["current_streak"],
-                best_streak=row["best_streak"],
-                last_validation_date=row["last_validation_date"],
-                validations_today=row["validations_today"],
-                combo_validations=row["combo_validations"],
-            )
+        if not row:
+            return Stats()
 
-        return Stats()
+        return Stats(
+            total_exp=row["total_exp"],
+            total_validations=row["total_validations"],
+            current_streak=row["current_streak"],
+            best_streak=row["best_streak"],
+            last_validation_date=row["last_validation_date"],
+            validations_today=row["validations_today"],
+            combo_validations=row["combo_validations"],
+        )
 
-    def save_stats(self, stats):
-        """
-        Sauvegarde les statistiques utilisateur
-        """
+    def save_stats(self, stats: Stats):
         cursor = self.conn.cursor()
         cursor.execute("""
         UPDATE stats SET
@@ -151,13 +149,29 @@ class Storage:
             stats.best_streak,
             stats.last_validation_date,
             stats.validations_today,
-            stats.combo_validations,
+            stats.combo_validations
         ))
         self.conn.commit()
 
     # =========================
-    # OBJECTIVES
+    # OBJECTIVES BASE
     # =========================
+    def save_objective(self, objective: Objective):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        INSERT OR IGNORE INTO objectives (
+            id, title, category, frequency, min_level, value
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            objective.id,
+            objective.title,
+            objective.category.value,
+            objective.frequency.value,
+            objective.min_level,
+            objective.value
+        ))
+        self.conn.commit()
+
     def seed_objectives(self):
         """
         Initialise la liste complète des objectifs
@@ -173,7 +187,7 @@ class Storage:
             # 🥋 DISCIPLINE — FORCE / CONTRÔLE (MUSCU)
             # ==================================================
 
-            # Niveau 1–4 (débutant total)
+            # Niveau 1–4
             Objective("pushups_5", "5 pompes", Category.DISCIPLINE, Frequency.DAILY, 1, 10),
             Objective("squats_10", "10 squats", Category.DISCIPLINE, Frequency.DAILY, 1, 10),
             Objective("plank_20", "Gainage 20 secondes", Category.DISCIPLINE, Frequency.DAILY, 1, 10),
@@ -194,7 +208,7 @@ class Storage:
             Objective("plank_120", "Gainage 2 minutes", Category.DISCIPLINE, Frequency.DAILY, 25, 45),
 
             # ==================================================
-            # 🫀 ENDURANCE — CARDIO UTILE MUSCU
+            # 🫀 ENDURANCE — CARDIO
             # ==================================================
 
             Objective("walk_10", "Marche 10 minutes", Category.ENDURANCE, Frequency.DAILY, 1, 10),
@@ -207,24 +221,20 @@ class Storage:
             Objective("run_20", "Course 20 minutes", Category.ENDURANCE, Frequency.DAILY, 20, 40),
 
             # ==================================================
-            # 🧠 RECOVERY — (Category.MENTAL côté code)
-            # Comptent comme OFF intelligent
+            # 🧠 RECOVERY — (MENTAL)
             # ==================================================
 
-            # Niveau 1–4
             Objective("stretch_5", "Étirements légers 5 minutes", Category.MENTAL, Frequency.DAILY, 1, 10),
             Objective("breathing_3", "Respiration post-effort 3 minutes", Category.MENTAL, Frequency.DAILY, 1, 10),
 
-            # Niveau 5–9
             Objective("mobility_shoulders", "Mobilité épaules 5 minutes", Category.MENTAL, Frequency.DAILY, 5, 15),
             Objective("stretch_10", "Étirements complets 10 minutes", Category.MENTAL, Frequency.DAILY, 10, 20),
 
-            # Niveau 15+
             Objective("foam_5", "Auto-massage 5 minutes", Category.MENTAL, Frequency.DAILY, 15, 30),
             Objective("mobility_full", "Mobilité complète 15 minutes", Category.MENTAL, Frequency.DAILY, 20, 40),
 
             # ==================================================
-            # 🏆 ELITE — WEEKLY (RARES & PUISSANTS)
+            # 🏆 ELITE — WEEKLY
             # ==================================================
 
             Objective(
@@ -264,7 +274,7 @@ class Storage:
             ),
         ]
 
-        # 🔒 Sécurité anti-doublons par ID
+        # 🔒 Anti-doublons + sauvegarde
         seen_ids = set()
         for obj in objectives:
             if obj.id in seen_ids:
@@ -272,61 +282,19 @@ class Storage:
             seen_ids.add(obj.id)
             self.save_objective(obj)
 
-    def save_objective(self, objective):
-        """
-        Sauvegarde un objectif dans la table objectives
-        - Anti-doublon par ID (INSERT OR IGNORE)
-        """
-        cursor = self.conn.cursor()
-        cursor.execute("""
-        INSERT OR IGNORE INTO objectives (
-            id,
-            title,
-            category,
-            frequency,
-            min_level,
-            value
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            objective.id,
-            objective.title,
-            objective.category.value,
-            objective.frequency.value,
-            objective.min_level,
-            objective.value
-        ))
-        self.conn.commit()
-
-
 
     def load_objectives_for_level(self, level: int):
-        """
-        Charge les objectifs disponibles pour un niveau donné
-        avec leur progression
-        """
-        from core.objective import Objective, Frequency, Category
-        from datetime import date
-
         cursor = self.conn.cursor()
         cursor.execute("""
-        SELECT
-            o.id,
-            o.title,
-            o.category,
-            o.frequency,
-            o.min_level,
-            o.value,
-            p.last_completed
+        SELECT o.*, p.last_completed
         FROM objectives o
-        LEFT JOIN objective_progress p ON o.id = p.objective_id
+        LEFT JOIN objective_progress p
+        ON o.id = p.objective_id
         WHERE o.min_level <= ?
         """, (level,))
 
-        rows = cursor.fetchall()
         objectives = []
-
-        for row in rows:
+        for row in cursor.fetchall():
             objectives.append(
                 Objective(
                     id=row["id"],
@@ -341,16 +309,15 @@ class Storage:
                     )
                 )
             )
-
         return objectives
 
-    # -------------------------
+    # =========================
     # OBJECTIVE PROGRESS
-    # -------------------------
+    # =========================
     def save_objective_completion(self, objective):
-        """
-        Sauvegarde / met à jour la date de complétion d'un objectif
-        """
+        if objective.last_completed is None:
+            return  # sécurité
+
         cursor = self.conn.cursor()
         cursor.execute("""
         INSERT INTO objective_progress (objective_id, last_completed)
@@ -360,11 +327,76 @@ class Storage:
         """, (
             objective.id,
             objective.last_completed.isoformat()
-            if objective.last_completed else None
         ))
         self.conn.commit()
 
 
+    # =========================
+    # DAILY QUESTS
+    # =========================
+    def _get_daily_date(self):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT value FROM daily_meta WHERE key = 'date'"
+        )
+        row = cursor.fetchone()
+        return row["value"] if row else None
+
+    def _set_daily_date(self, today):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        INSERT INTO daily_meta (key, value)
+        VALUES ('date', ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """, (today,))
+        self.conn.commit()
+
+    def generate_daily_pool(self, level: int, count: int = 3):
+        today = date.today().isoformat()
+        if self._get_daily_date() == today:
+            return
+
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM daily_objectives")
+
+        cursor.execute("""
+        SELECT id FROM objectives
+        WHERE min_level <= ?
+        """, (level,))
+        ids = [r["id"] for r in cursor.fetchall()]
+
+        if not ids:
+            return
+
+        selected = random.sample(ids, min(count, len(ids)))
+
+        for oid in selected:
+            cursor.execute(
+                "INSERT INTO daily_objectives (objective_id) VALUES (?)",
+                (oid,)
+            )
+
+        self._set_daily_date(today)
+        self.conn.commit()
+
+    def load_daily_objectives(self):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        SELECT o.*
+        FROM objectives o
+        JOIN daily_objectives d
+        ON o.id = d.objective_id
+        """)
+        return cursor.fetchall()
+
+    def complete_daily_objective(self, objective_id: str):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "DELETE FROM daily_objectives WHERE objective_id = ?",
+            (objective_id,)
+        )
+        self.conn.commit()
+    
     # =========================
     # ACHIEVEMENTS
     # =========================
@@ -382,6 +414,7 @@ class Storage:
         cursor.execute("""
         INSERT INTO achievements (id, unlocked)
         VALUES (?, 1)
-        ON CONFLICT(id) DO UPDATE SET unlocked = 1
+        ON CONFLICT(id)
+        DO UPDATE SET unlocked = 1
         """, (achievement_id,))
         self.conn.commit()
